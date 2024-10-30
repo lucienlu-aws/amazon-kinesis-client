@@ -19,11 +19,12 @@ import java.util.function.Function;
 
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
-import lombok.NonNull;
 import lombok.Setter;
 import lombok.ToString;
-import lombok.experimental.Accessors;
 import org.apache.commons.lang3.StringUtils;
+
+import lombok.NonNull;
+import lombok.experimental.Accessors;
 import software.amazon.awssdk.arns.Arn;
 import software.amazon.awssdk.services.cloudwatch.CloudWatchAsyncClient;
 import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient;
@@ -34,9 +35,9 @@ import software.amazon.kinesis.coordinator.CoordinatorConfig;
 import software.amazon.kinesis.leases.LeaseManagementConfig;
 import software.amazon.kinesis.lifecycle.LifecycleConfig;
 import software.amazon.kinesis.metrics.MetricsConfig;
-import software.amazon.kinesis.processor.MultiStreamTracker;
 import software.amazon.kinesis.processor.ProcessorConfig;
 import software.amazon.kinesis.processor.ShardRecordProcessorFactory;
+import software.amazon.kinesis.processor.MultiStreamTracker;
 import software.amazon.kinesis.processor.SingleStreamTracker;
 import software.amazon.kinesis.processor.StreamTracker;
 import software.amazon.kinesis.retrieval.RetrievalConfig;
@@ -44,10 +45,7 @@ import software.amazon.kinesis.retrieval.RetrievalConfig;
 /**
  * This Builder is useful to create all configurations for the KCL with default values.
  */
-@Getter
-@Setter
-@ToString
-@EqualsAndHashCode
+@Getter @Setter @ToString @EqualsAndHashCode
 @Accessors(fluent = true)
 public class ConfigsBuilder {
     /**
@@ -141,16 +139,11 @@ public class ConfigsBuilder {
      * @param workerIdentifier
      * @param shardRecordProcessorFactory
      */
-    public ConfigsBuilder(
-            @NonNull String streamName,
-            @NonNull String applicationName,
-            @NonNull KinesisAsyncClient kinesisClient,
-            @NonNull DynamoDbAsyncClient dynamoDBClient,
-            @NonNull CloudWatchAsyncClient cloudWatchClient,
-            @NonNull String workerIdentifier,
+    public ConfigsBuilder(@NonNull String streamName, @NonNull String applicationName,
+            @NonNull KinesisAsyncClient kinesisClient, @NonNull DynamoDbAsyncClient dynamoDBClient,
+            @NonNull CloudWatchAsyncClient cloudWatchClient, @NonNull String workerIdentifier,
             @NonNull ShardRecordProcessorFactory shardRecordProcessorFactory) {
-        this(
-                new SingleStreamTracker(streamName),
+        this(new SingleStreamTracker(streamName),
                 applicationName,
                 kinesisClient,
                 dynamoDBClient,
@@ -170,16 +163,11 @@ public class ConfigsBuilder {
      * @param workerIdentifier
      * @param shardRecordProcessorFactory
      */
-    public ConfigsBuilder(
-            @NonNull Arn streamArn,
-            @NonNull String applicationName,
-            @NonNull KinesisAsyncClient kinesisClient,
-            @NonNull DynamoDbAsyncClient dynamoDBClient,
-            @NonNull CloudWatchAsyncClient cloudWatchClient,
-            @NonNull String workerIdentifier,
-            @NonNull ShardRecordProcessorFactory shardRecordProcessorFactory) {
-        this(
-                new SingleStreamTracker(streamArn),
+    public ConfigsBuilder(@NonNull Arn streamArn, @NonNull String applicationName,
+                          @NonNull KinesisAsyncClient kinesisClient, @NonNull DynamoDbAsyncClient dynamoDBClient,
+                          @NonNull CloudWatchAsyncClient cloudWatchClient, @NonNull String workerIdentifier,
+                          @NonNull ShardRecordProcessorFactory shardRecordProcessorFactory) {
+        this(new SingleStreamTracker(streamArn),
                 applicationName,
                 kinesisClient,
                 dynamoDBClient,
@@ -199,13 +187,9 @@ public class ConfigsBuilder {
      * @param workerIdentifier
      * @param shardRecordProcessorFactory
      */
-    public ConfigsBuilder(
-            @NonNull StreamTracker streamTracker,
-            @NonNull String applicationName,
-            @NonNull KinesisAsyncClient kinesisClient,
-            @NonNull DynamoDbAsyncClient dynamoDBClient,
-            @NonNull CloudWatchAsyncClient cloudWatchClient,
-            @NonNull String workerIdentifier,
+    public ConfigsBuilder(@NonNull StreamTracker streamTracker, @NonNull String applicationName,
+            @NonNull KinesisAsyncClient kinesisClient, @NonNull DynamoDbAsyncClient dynamoDBClient,
+            @NonNull CloudWatchAsyncClient cloudWatchClient, @NonNull String workerIdentifier,
             @NonNull ShardRecordProcessorFactory shardRecordProcessorFactory) {
         this.applicationName = applicationName;
         this.kinesisClient = kinesisClient;
@@ -225,11 +209,8 @@ public class ConfigsBuilder {
 
     public void streamTracker(StreamTracker streamTracker) {
         this.streamTracker = streamTracker;
-        this.appStreamTracker = DeprecationUtils.convert(streamTracker, singleStreamTracker -> singleStreamTracker
-                .streamConfigList()
-                .get(0)
-                .streamIdentifier()
-                .streamName());
+        this.appStreamTracker = DeprecationUtils.convert(streamTracker,
+                singleStreamTracker -> singleStreamTracker.streamConfigList().get(0).streamIdentifier().streamName());
     }
 
     /**
@@ -256,7 +237,7 @@ public class ConfigsBuilder {
      * @return LeaseManagementConfig
      */
     public LeaseManagementConfig leaseManagementConfig() {
-        return new LeaseManagementConfig(tableName(), dynamoDBClient(), kinesisClient(), workerIdentifier());
+        return new LeaseManagementConfig(tableName(), applicationName(), dynamoDBClient(), kinesisClient(), workerIdentifier());
     }
 
     /**

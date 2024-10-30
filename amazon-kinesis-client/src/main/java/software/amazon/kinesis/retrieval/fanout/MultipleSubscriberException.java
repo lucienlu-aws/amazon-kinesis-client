@@ -15,4 +15,5 @@
 
 package software.amazon.kinesis.retrieval.fanout;
 
-public class MultipleSubscriberException extends RuntimeException {}
+public class MultipleSubscriberException extends RuntimeException {
+}

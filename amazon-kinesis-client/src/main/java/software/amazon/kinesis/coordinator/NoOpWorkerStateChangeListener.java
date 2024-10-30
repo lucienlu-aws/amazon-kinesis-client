@@ -19,8 +19,12 @@ public class NoOpWorkerStateChangeListener implements WorkerStateChangeListener 
     /**
      * Empty constructor for NoOp Worker State Change Listener
      */
-    public NoOpWorkerStateChangeListener() {}
+    public NoOpWorkerStateChangeListener() {
+
+    }
 
     @Override
-    public void onWorkerStateChange(WorkerState newState) {}
+    public void onWorkerStateChange(WorkerState newState) {
+
+    }
 }

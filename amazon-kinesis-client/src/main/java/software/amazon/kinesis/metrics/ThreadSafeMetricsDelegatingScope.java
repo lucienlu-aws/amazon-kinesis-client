@@ -14,6 +14,7 @@
  */
 package software.amazon.kinesis.metrics;
 
+
 import software.amazon.awssdk.services.cloudwatch.model.StandardUnit;
 
 /**
@@ -64,4 +65,5 @@ public class ThreadSafeMetricsDelegatingScope implements MetricsScope {
     public synchronized void end() {
         delegate.end();
     }
+
 }

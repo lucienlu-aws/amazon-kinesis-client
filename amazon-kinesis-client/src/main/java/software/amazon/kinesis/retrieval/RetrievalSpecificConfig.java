@@ -40,4 +40,5 @@ public interface RetrievalSpecificConfig {
     default void validateState(boolean isMultiStream) {
         // TODO convert this to a non-default implementation in a "major" release
     }
+
 }

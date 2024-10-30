@@ -15,10 +15,6 @@
 
 package software.amazon.kinesis.common;
 
-import java.util.Optional;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
@@ -29,6 +25,10 @@ import software.amazon.awssdk.arns.Arn;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.utils.Validate;
 
+import java.util.Optional;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 @Builder(access = AccessLevel.PRIVATE)
 @EqualsAndHashCode
 @Getter
@@ -37,13 +37,10 @@ public class StreamIdentifier {
 
     @Builder.Default
     private final Optional<String> accountIdOptional = Optional.empty();
-
     @NonNull
     private final String streamName;
-
     @Builder.Default
     private final Optional<Long> streamCreationEpochOptional = Optional.empty();
-
     @Builder.Default
     @EqualsAndHashCode.Exclude
     private final Optional<Arn> streamArnOptional = Optional.empty();
@@ -52,8 +49,8 @@ public class StreamIdentifier {
      * Pattern for a serialized {@link StreamIdentifier}. The valid format is
      * {@code <accountId>:<streamName>:<creationEpoch>}.
      */
-    private static final Pattern STREAM_IDENTIFIER_PATTERN =
-            Pattern.compile("(?<accountId>[0-9]+):(?<streamName>[^:]+):(?<creationEpoch>[0-9]+)");
+    private static final Pattern STREAM_IDENTIFIER_PATTERN = Pattern.compile(
+            "(?<accountId>[0-9]+):(?<streamName>[^:]+):(?<creationEpoch>[0-9]+)");
 
     /**
      * Pattern for a stream ARN. The valid format is
@@ -77,10 +74,8 @@ public class StreamIdentifier {
 
         final char delimiter = ':';
         final StringBuilder sb = new StringBuilder()
-                .append(accountIdOptional.get())
-                .append(delimiter)
-                .append(streamName)
-                .append(delimiter)
+                .append(accountIdOptional.get()).append(delimiter)
+                .append(streamName).append(delimiter)
                 .append(streamCreationEpochOptional.get());
         return sb.toString();
     }
@@ -151,7 +146,9 @@ public class StreamIdentifier {
     public static StreamIdentifier singleStreamInstance(String streamName) {
         Validate.notEmpty(streamName, "StreamName should not be empty");
 
-        return StreamIdentifier.builder().streamName(streamName).build();
+        return StreamIdentifier.builder()
+                .streamName(streamName)
+                .build();
     }
 
     /**
@@ -176,8 +173,7 @@ public class StreamIdentifier {
      * @param streamArn
      */
     public static void validateArn(Arn streamArn) {
-        if (!STREAM_ARN_PATTERN.matcher(streamArn.toString()).matches()
-                || !streamArn.region().isPresent()) {
+        if (!STREAM_ARN_PATTERN.matcher(streamArn.toString()).matches() || !streamArn.region().isPresent()) {
             throw new IllegalArgumentException("Invalid streamArn " + streamArn);
         }
     }
@@ -189,7 +185,9 @@ public class StreamIdentifier {
      */
     private static void validateCreationEpoch(long creationEpoch) {
         if (creationEpoch <= 0) {
-            throw new IllegalArgumentException("Creation epoch must be > 0; received " + creationEpoch);
+            throw new IllegalArgumentException(
+                    "Creation epoch must be > 0; received " + creationEpoch);
         }
     }
+
 }

@@ -69,4 +69,5 @@ public class TaskResult {
         this.exception = e;
         this.shardEndReached = isShardEndReached;
     }
+
 }

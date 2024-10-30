@@ -14,14 +14,14 @@
  */
 package software.amazon.kinesis.leases;
 
+import software.amazon.awssdk.core.SdkBytes;
+import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
+import software.amazon.kinesis.annotations.KinesisClientInternalApi;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-
-import software.amazon.awssdk.core.SdkBytes;
-import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
-import software.amazon.kinesis.annotations.KinesisClientInternalApi;
 
 /**
  * Static utility functions used by our LeaseSerializers.
@@ -42,9 +42,7 @@ public class DynamoUtils {
             throw new IllegalArgumentException("Byte buffer attributeValues cannot be null or empty.");
         }
 
-        return AttributeValue.builder()
-                .b(SdkBytes.fromByteArray(byteBufferValue))
-                .build();
+        return AttributeValue.builder().b(SdkBytes.fromByteArray(byteBufferValue)).build();
     }
 
     public static AttributeValue createAttributeValue(String stringValue) {
@@ -81,8 +79,20 @@ public class DynamoUtils {
         }
     }
 
+    public static AttributeValue createAttributeValue(Double doubleValue) {
+        if (doubleValue == null) {
+            throw new IllegalArgumentException("Double attributeValues cannot be null.");
+        }
+
+        return AttributeValue.builder().n(doubleValue.toString()).build();
+    }
+
     public static String safeGetString(Map<String, AttributeValue> dynamoRecord, String key) {
         AttributeValue av = dynamoRecord.get(key);
+        return safeGetString(av);
+    }
+
+    public static String safeGetString(AttributeValue av) {
         if (av == null) {
             return null;
         } else {
@@ -99,4 +109,13 @@ public class DynamoUtils {
             return av.ss();
         }
     }
+    public static Double safeGetDouble(Map<String, AttributeValue> dynamoRecord, String key) {
+        AttributeValue av = dynamoRecord.get(key);
+        if (av == null) {
+            return null;
+        } else {
+            return new Double(av.n());
+        }
+    }
+
 }

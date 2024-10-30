@@ -33,4 +33,5 @@ import software.amazon.kinesis.processor.ShardRecordProcessor;
 @Builder
 @EqualsAndHashCode
 @ToString
-public class LeaseLostInput {}
+public class LeaseLostInput {
+}

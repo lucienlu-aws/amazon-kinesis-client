@@ -18,6 +18,5 @@ package software.amazon.kinesis.retrieval;
  *
  */
 public enum DataFetchingStrategy {
-    DEFAULT,
-    PREFETCH_CACHED;
+    DEFAULT, PREFETCH_CACHED;
 }

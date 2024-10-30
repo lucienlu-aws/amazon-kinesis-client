@@ -25,4 +25,5 @@ public interface RecordsDeliveryAck {
      * @return id that uniquely determines a record batch and its source.
      */
     BatchUniqueIdentifier batchUniqueIdentifier();
+
 }

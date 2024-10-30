@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+
 /**
  * Metrics scope for CloudWatch metrics.
  */
@@ -31,8 +32,8 @@ public class CloudWatchMetricsScope extends FilteringMetricsScope implements Met
      * @param metricsLevel Metrics level to enable. All data with level below this will be dropped.
      * @param metricsEnabledDimensions Enabled dimensions for CloudWatch metrics.
      */
-    public CloudWatchMetricsScope(
-            CloudWatchPublisherRunnable publisher, MetricsLevel metricsLevel, Set<String> metricsEnabledDimensions) {
+    public CloudWatchMetricsScope(CloudWatchPublisherRunnable publisher,
+                                  MetricsLevel metricsLevel, Set<String> metricsEnabledDimensions) {
         super(metricsLevel, metricsEnabledDimensions);
         this.publisher = publisher;
     }
@@ -48,11 +49,11 @@ public class CloudWatchMetricsScope extends FilteringMetricsScope implements Met
         super.end();
 
         final List<MetricDatumWithKey<CloudWatchMetricKey>> dataWithKeys = data.values().stream()
-                .map(metricDatum ->
-                        metricDatum.toBuilder().dimensions(getDimensions()).build())
+                .map(metricDatum -> metricDatum.toBuilder().dimensions(getDimensions()).build())
                 .map(metricDatum -> new MetricDatumWithKey<>(new CloudWatchMetricKey(metricDatum), metricDatum))
                 .collect(Collectors.toList());
 
         publisher.enqueue(dataWithKeys);
     }
+
 }

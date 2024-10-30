@@ -29,5 +29,6 @@ public interface WorkerStateChangeListener {
 
     void onWorkerStateChange(WorkerState newState);
 
-    default void onAllInitializationAttemptsFailed(Throwable e) {}
+    default void onAllInitializationAttemptsFailed(Throwable e) {
+    }
 }

@@ -1,0 +1,136 @@
+package software.amazon.kinesis.worker.metric.impl.linux;
+
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileReader;
+
+import lombok.AccessLevel;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
+import software.amazon.kinesis.worker.metric.OperatingRange;
+import software.amazon.kinesis.worker.metric.WorkerMetricType;
+import software.amazon.kinesis.worker.metric.WorkerMetric;
+
+/**
+ * Reads CPU usage statistics out of /proc/stat file that is present on the EC2 instances. The value is % utilization
+ * of the CPU.
+ * When this is invoked for the first time, the value returned is always 0 as the prev values are not available
+ * to calculate the diff. If the file hasn't changed this also returns 0.
+ * In case the file is not present or any other exception occurs, this throws IllegalArgumentException.
+ */
+@Slf4j
+@RequiredArgsConstructor(access = AccessLevel.PACKAGE)
+public class LinuxCpuWorkerMetric implements WorkerMetric {
+
+    private static final Object LOCK_OBJECT = new Object();
+    private static final WorkerMetricType CPU_WORKER_METRICS_TYPE = WorkerMetricType.CPU;
+    private final OperatingRange operatingRange;
+    private final String statFile;
+    private long last_usr, last_iow, last_sys, last_idl, last_tot;
+    private String last_line;
+
+    public LinuxCpuWorkerMetric(final OperatingRange operatingRange) {
+        this(operatingRange, "/proc/stat");
+    }
+
+    @Override
+    public String getShortName() {
+        return CPU_WORKER_METRICS_TYPE.getShortName();
+    }
+
+    @Override
+    public WorkerMetricValue capture() {
+        return WorkerMetricValue.builder()
+                .value(calculateCpuUsage())
+                .build();
+    }
+
+    private double calculateCpuUsage() {
+        BufferedReader bufferedReader = null;
+        try {
+
+            final File stat = new File(statFile);
+            if (stat.exists()) {
+
+                bufferedReader = new BufferedReader(new FileReader(stat));
+                final String line = bufferedReader.readLine();
+                final String[] lineVals = line.split("\\s+");
+
+                long usr = Long.parseLong(lineVals[1]) + Long.parseLong(lineVals[2]);
+                long sys = Long.parseLong(lineVals[3]);
+                long idl = Long.parseLong(lineVals[4]);
+                long iow = Long.parseLong(lineVals[5]);
+                long tot = usr + sys + idl + iow;
+                long diff_idl = -1;
+                long diff_tot = -1;
+
+                boolean skip = false;
+                synchronized (LOCK_OBJECT) {
+
+                    if (last_usr == 0 || line.equals(last_line)) {
+                        // Case where this is a first call so no diff available or
+                        // /proc/stat file is not updated since last time.
+                        skip = true;
+                    }
+
+                    diff_idl = Math.abs(idl - last_idl);
+                    diff_tot = Math.abs(tot - last_tot);
+                    if (diff_tot < diff_idl) {
+                        log.warn("diff_tot is less than diff_idle. \nPrev cpu line : {} and current cpu line : {} ",
+                                last_line,
+                                line);
+                        if (iow < last_iow) {
+                            // this is case where current iow value less than prev, this can happen in rare cases as per
+                            // https://docs.kernel.org/filesystems/proc.html, and when the worker is idle
+                            // there is no increase in usr or sys values as well resulting in diff_tot < diff_idl as
+                            // current tot increases less than current idl
+                            // return 0 in this case as this is the case where worker is not doing anything anyways.
+                            skip = true;
+                        }
+                    }
+                    last_usr = usr;
+                    last_sys = sys;
+                    last_idl = idl;
+                    last_iow = iow;
+                    last_tot = usr + sys + idl + iow;
+                    last_line = line;
+                }
+
+                if (skip) {
+                    return 0D;
+                }
+
+                return ((double) (diff_tot - diff_idl) / (double) diff_tot) * 100.0;
+
+            } else {
+                throw new IllegalArgumentException(
+                        String.format("LinuxCpuWorkerMetric is not configured properly, file : %s does not exists",
+                                this.statFile));
+            }
+        } catch (final Throwable t) {
+            if (t instanceof IllegalArgumentException) {
+                throw (IllegalArgumentException) t;
+            }
+            throw new IllegalArgumentException("LinuxCpuWorkerMetric failed to read metric stats or not configured properly.", t);
+        } finally {
+            try {
+                if (bufferedReader != null)
+                    bufferedReader.close();
+            } catch (Throwable x) {
+                log.warn("Failed to close bufferedReader ", x);
+            }
+        }
+    }
+
+    @Override
+    public OperatingRange getOperatingRange() {
+        return operatingRange;
+    }
+
+    @Override
+    public WorkerMetricType getWorkerMetricType() {
+        return CPU_WORKER_METRICS_TYPE;
+    }
+
+}

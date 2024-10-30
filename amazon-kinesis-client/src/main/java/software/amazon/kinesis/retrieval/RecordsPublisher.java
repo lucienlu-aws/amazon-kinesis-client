@@ -16,6 +16,7 @@
 package software.amazon.kinesis.retrieval;
 
 import org.reactivestreams.Publisher;
+
 import software.amazon.kinesis.common.InitialPositionInStreamExtended;
 import software.amazon.kinesis.common.RequestDetails;
 import software.amazon.kinesis.retrieval.kpl.ExtendedSequenceNumber;
@@ -34,9 +35,7 @@ public interface RecordsPublisher extends Publisher<RecordsRetrieved> {
      * @param initialPositionInStreamExtended
      *            if there is no sequence number the initial position to use
      */
-    void start(
-            ExtendedSequenceNumber extendedSequenceNumber,
-            InitialPositionInStreamExtended initialPositionInStreamExtended);
+    void start(ExtendedSequenceNumber extendedSequenceNumber, InitialPositionInStreamExtended initialPositionInStreamExtended);
 
     /**
      * Restart from the last accepted and processed

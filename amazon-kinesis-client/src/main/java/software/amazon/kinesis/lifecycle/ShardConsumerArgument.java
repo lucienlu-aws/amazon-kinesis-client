@@ -15,8 +15,6 @@
 
 package software.amazon.kinesis.lifecycle;
 
-import java.util.concurrent.ExecutorService;
-
 import lombok.Data;
 import lombok.NonNull;
 import lombok.experimental.Accessors;
@@ -24,11 +22,11 @@ import software.amazon.kinesis.annotations.KinesisClientInternalApi;
 import software.amazon.kinesis.checkpoint.ShardRecordProcessorCheckpointer;
 import software.amazon.kinesis.common.InitialPositionInStreamExtended;
 import software.amazon.kinesis.common.StreamIdentifier;
-import software.amazon.kinesis.leases.HierarchicalShardSyncer;
 import software.amazon.kinesis.leases.LeaseCleanupManager;
 import software.amazon.kinesis.leases.LeaseCoordinator;
 import software.amazon.kinesis.leases.ShardDetector;
 import software.amazon.kinesis.leases.ShardInfo;
+import software.amazon.kinesis.leases.HierarchicalShardSyncer;
 import software.amazon.kinesis.metrics.MetricsFactory;
 import software.amazon.kinesis.processor.Checkpointer;
 import software.amazon.kinesis.processor.ShardRecordProcessor;
@@ -36,34 +34,28 @@ import software.amazon.kinesis.retrieval.AggregatorUtil;
 import software.amazon.kinesis.retrieval.RecordsPublisher;
 import software.amazon.kinesis.schemaregistry.SchemaRegistryDecoder;
 
+import java.util.concurrent.ExecutorService;
+
 @Data
 @Accessors(fluent = true)
 @KinesisClientInternalApi
 public class ShardConsumerArgument {
     @NonNull
     private final ShardInfo shardInfo;
-
     @NonNull
     private final StreamIdentifier streamIdentifier;
-
     @NonNull
     private final LeaseCoordinator leaseCoordinator;
-
     @NonNull
     private final ExecutorService executorService;
-
     @NonNull
     private final RecordsPublisher recordsPublisher;
-
     @NonNull
     private final ShardRecordProcessor shardRecordProcessor;
-
     @NonNull
     private final Checkpointer checkpoint;
-
     @NonNull
     private final ShardRecordProcessorCheckpointer recordProcessorCheckpointer;
-
     private final long parentShardPollIntervalMillis;
     private final long taskBackoffTimeMillis;
     private final boolean skipShardSyncAtWorkerInitializationIfLeasesExist;
@@ -71,22 +63,16 @@ public class ShardConsumerArgument {
     private final int maxListShardsRetryAttempts;
     private final boolean shouldCallProcessRecordsEvenForEmptyRecordList;
     private final long idleTimeInMilliseconds;
-
     @NonNull
     private final InitialPositionInStreamExtended initialPositionInStream;
-
     private final boolean cleanupLeasesOfCompletedShards;
     private final boolean ignoreUnexpectedChildShards;
-
     @NonNull
     private final ShardDetector shardDetector;
-
     private final AggregatorUtil aggregatorUtil;
     private final HierarchicalShardSyncer hierarchicalShardSyncer;
-
     @NonNull
     private final MetricsFactory metricsFactory;
-
     private final LeaseCleanupManager leaseCleanupManager;
     private final SchemaRegistryDecoder schemaRegistryDecoder;
 }

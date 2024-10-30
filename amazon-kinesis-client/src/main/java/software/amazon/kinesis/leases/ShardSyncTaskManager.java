@@ -20,16 +20,17 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantLock;
 
+import software.amazon.kinesis.common.InitialPositionInStreamExtended;
+
 import lombok.Data;
 import lombok.NonNull;
 import lombok.experimental.Accessors;
 import lombok.extern.slf4j.Slf4j;
-import software.amazon.kinesis.common.InitialPositionInStreamExtended;
 import software.amazon.kinesis.coordinator.ExecutorStateEvent;
 import software.amazon.kinesis.lifecycle.ConsumerTask;
 import software.amazon.kinesis.lifecycle.TaskResult;
-import software.amazon.kinesis.metrics.MetricsCollectingTaskDecorator;
 import software.amazon.kinesis.metrics.MetricsFactory;
+import software.amazon.kinesis.metrics.MetricsCollectingTaskDecorator;
 
 /**
  * The ShardSyncTaskManager is used to track the task to sync shards with leases (create leases for new
@@ -42,27 +43,20 @@ import software.amazon.kinesis.metrics.MetricsFactory;
 public class ShardSyncTaskManager {
     @NonNull
     private final ShardDetector shardDetector;
-
     @NonNull
     private final LeaseRefresher leaseRefresher;
-
     @NonNull
     private final InitialPositionInStreamExtended initialPositionInStream;
-
     private final boolean cleanupLeasesUponShardCompletion;
     private final boolean garbageCollectLeases;
     private final boolean ignoreUnexpectedChildShards;
     private final long shardSyncIdleTimeMillis;
-
     @NonNull
     private final ExecutorService executorService;
-
     @NonNull
     private final HierarchicalShardSyncer hierarchicalShardSyncer;
-
     @NonNull
     private final MetricsFactory metricsFactory;
-
     private ConsumerTask currentTask;
     private CompletableFuture<TaskResult> future;
     private AtomicBoolean shardSyncRequestPending;
@@ -83,14 +77,9 @@ public class ShardSyncTaskManager {
      * @param metricsFactory
      */
     @Deprecated
-    public ShardSyncTaskManager(
-            ShardDetector shardDetector,
-            LeaseRefresher leaseRefresher,
-            InitialPositionInStreamExtended initialPositionInStream,
-            boolean cleanupLeasesUponShardCompletion,
-            boolean ignoreUnexpectedChildShards,
-            long shardSyncIdleTimeMillis,
-            ExecutorService executorService,
+    public ShardSyncTaskManager(ShardDetector shardDetector, LeaseRefresher leaseRefresher,
+            InitialPositionInStreamExtended initialPositionInStream, boolean cleanupLeasesUponShardCompletion,
+            boolean ignoreUnexpectedChildShards, long shardSyncIdleTimeMillis, ExecutorService executorService,
             MetricsFactory metricsFactory) {
         this.shardDetector = shardDetector;
         this.leaseRefresher = leaseRefresher;
@@ -119,16 +108,10 @@ public class ShardSyncTaskManager {
      * @param hierarchicalShardSyncer
      * @param metricsFactory
      */
-    public ShardSyncTaskManager(
-            ShardDetector shardDetector,
-            LeaseRefresher leaseRefresher,
-            InitialPositionInStreamExtended initialPositionInStream,
-            boolean cleanupLeasesUponShardCompletion,
-            boolean ignoreUnexpectedChildShards,
-            long shardSyncIdleTimeMillis,
-            ExecutorService executorService,
-            HierarchicalShardSyncer hierarchicalShardSyncer,
-            MetricsFactory metricsFactory) {
+    public ShardSyncTaskManager(ShardDetector shardDetector, LeaseRefresher leaseRefresher,
+            InitialPositionInStreamExtended initialPositionInStream, boolean cleanupLeasesUponShardCompletion,
+            boolean ignoreUnexpectedChildShards, long shardSyncIdleTimeMillis, ExecutorService executorService,
+            HierarchicalShardSyncer hierarchicalShardSyncer, MetricsFactory metricsFactory) {
         this.shardDetector = shardDetector;
         this.leaseRefresher = leaseRefresher;
         this.initialPositionInStream = initialPositionInStream;
@@ -148,16 +131,15 @@ public class ShardSyncTaskManager {
      * @return the Task Result.
      */
     public TaskResult callShardSyncTask() {
-        final ShardSyncTask shardSyncTask = new ShardSyncTask(
-                shardDetector,
-                leaseRefresher,
-                initialPositionInStream,
-                cleanupLeasesUponShardCompletion,
-                garbageCollectLeases,
-                ignoreUnexpectedChildShards,
-                shardSyncIdleTimeMillis,
-                hierarchicalShardSyncer,
-                metricsFactory);
+        final ShardSyncTask shardSyncTask = new ShardSyncTask(shardDetector,
+                                               leaseRefresher,
+                                               initialPositionInStream,
+                                               cleanupLeasesUponShardCompletion,
+                                               garbageCollectLeases,
+                                               ignoreUnexpectedChildShards,
+                                               shardSyncIdleTimeMillis,
+                                               hierarchicalShardSyncer,
+                                               metricsFactory);
         final ConsumerTask metricCollectingTask = new MetricsCollectingTaskDecorator(shardSyncTask, metricsFactory);
         return metricCollectingTask.call();
     }
@@ -182,27 +164,28 @@ public class ShardSyncTaskManager {
                 try {
                     TaskResult result = future.get();
                     if (result.getException() != null) {
-                        log.error("Caught exception running {} task: ", currentTask.taskType(), result.getException());
+                        log.error("Caught exception running {} task: ", currentTask.taskType(),
+                                result.getException());
                     }
                 } catch (InterruptedException | ExecutionException e) {
                     log.warn("{} task encountered exception.", currentTask.taskType(), e);
                 }
             }
 
-            currentTask = new MetricsCollectingTaskDecorator(
-                    new ShardSyncTask(
-                            shardDetector,
-                            leaseRefresher,
-                            initialPositionInStream,
-                            cleanupLeasesUponShardCompletion,
-                            garbageCollectLeases,
-                            ignoreUnexpectedChildShards,
-                            shardSyncIdleTimeMillis,
-                            hierarchicalShardSyncer,
-                            metricsFactory),
-                    metricsFactory);
+            currentTask =
+                    new MetricsCollectingTaskDecorator(
+                            new ShardSyncTask(shardDetector,
+                                    leaseRefresher,
+                                    initialPositionInStream,
+                                    cleanupLeasesUponShardCompletion,
+                                    garbageCollectLeases,
+                                    ignoreUnexpectedChildShards,
+                                    shardSyncIdleTimeMillis,
+                                    hierarchicalShardSyncer,
+                                    metricsFactory),
+                            metricsFactory);
             future = CompletableFuture.supplyAsync(() -> currentTask.call(), executorService)
-                    .whenComplete((taskResult, exception) -> handlePendingShardSyncs(exception, taskResult));
+                                      .whenComplete((taskResult, exception) -> handlePendingShardSyncs(exception, taskResult));
 
             log.info(new ExecutorStateEvent(executorService).message());
 
@@ -212,10 +195,8 @@ public class ShardSyncTaskManager {
             }
         } else {
             if (log.isDebugEnabled()) {
-                log.debug(
-                        "Previous {} task still pending.  Not submitting new task. "
-                                + "Triggered a pending request but will not be executed until the current request completes.",
-                        currentTask.taskType());
+                log.debug("Previous {} task still pending.  Not submitting new task. "
+                          + "Triggered a pending request but will not be executed until the current request completes.", currentTask.taskType());
             }
             shardSyncRequestPending.compareAndSet(false /*expected*/, true /*update*/);
         }
@@ -224,10 +205,9 @@ public class ShardSyncTaskManager {
 
     private void handlePendingShardSyncs(Throwable exception, TaskResult taskResult) {
         if (exception != null || taskResult.getException() != null) {
-            log.error(
-                    "Caught exception running {} task: {}",
-                    currentTask.taskType(),
+            log.error("Caught exception running {} task: {}", currentTask.taskType(),
                     exception != null ? exception : taskResult.getException());
         }
     }
+
 }

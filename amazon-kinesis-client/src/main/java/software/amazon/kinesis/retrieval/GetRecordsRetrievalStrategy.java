@@ -15,7 +15,6 @@
 package software.amazon.kinesis.retrieval;
 
 import java.util.Optional;
-
 import software.amazon.awssdk.services.kinesis.model.GetRecordsResponse;
 import software.amazon.kinesis.retrieval.polling.DataFetcher;
 import software.amazon.kinesis.retrieval.polling.KinesisDataFetcher;

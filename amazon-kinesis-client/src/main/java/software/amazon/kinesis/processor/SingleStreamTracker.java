@@ -58,11 +58,14 @@ public class SingleStreamTracker implements StreamTracker {
     }
 
     public SingleStreamTracker(
-            StreamIdentifier streamIdentifier, @NonNull InitialPositionInStreamExtended initialPosition) {
+            StreamIdentifier streamIdentifier,
+            @NonNull InitialPositionInStreamExtended initialPosition) {
         this(streamIdentifier, new StreamConfig(streamIdentifier, initialPosition));
     }
 
-    public SingleStreamTracker(String streamName, @NonNull InitialPositionInStreamExtended initialPosition) {
+    public SingleStreamTracker(
+            String streamName,
+            @NonNull InitialPositionInStreamExtended initialPosition) {
         this(StreamIdentifier.singleStreamInstance(streamName), initialPosition);
     }
 
@@ -85,4 +88,5 @@ public class SingleStreamTracker implements StreamTracker {
     public boolean isMultiStream() {
         return false;
     }
+
 }

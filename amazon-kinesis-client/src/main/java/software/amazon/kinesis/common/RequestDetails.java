@@ -15,11 +15,11 @@
 
 package software.amazon.kinesis.common;
 
-import java.util.Optional;
-
 import lombok.experimental.Accessors;
 
-@Accessors(fluent = true)
+import java.util.Optional;
+
+@Accessors(fluent=true)
 public class RequestDetails {
 
     /**
@@ -62,4 +62,6 @@ public class RequestDetails {
     public String toString() {
         return String.format("request id - %s, timestamp - %s", getRequestId(), getTimestamp());
     }
+
 }
+

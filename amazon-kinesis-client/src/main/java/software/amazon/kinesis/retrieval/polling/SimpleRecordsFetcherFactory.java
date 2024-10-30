@@ -17,6 +17,7 @@ package software.amazon.kinesis.retrieval.polling;
 import java.util.concurrent.Executors;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
+
 import lombok.extern.slf4j.Slf4j;
 import software.amazon.kinesis.annotations.KinesisClientInternalApi;
 import software.amazon.kinesis.metrics.MetricsFactory;
@@ -24,6 +25,7 @@ import software.amazon.kinesis.retrieval.DataFetchingStrategy;
 import software.amazon.kinesis.retrieval.GetRecordsRetrievalStrategy;
 import software.amazon.kinesis.retrieval.RecordsFetcherFactory;
 import software.amazon.kinesis.retrieval.RecordsPublisher;
+import software.amazon.kinesis.retrieval.ThrottlingReporter;
 
 @Slf4j
 @KinesisClientInternalApi
@@ -32,6 +34,7 @@ public class SimpleRecordsFetcherFactory implements RecordsFetcherFactory {
     private int maxByteSize = 8 * 1024 * 1024;
     private int maxRecordsCount = 30000;
     private long idleMillisBetweenCalls = 1500L;
+    private int maxConsecutiveThrottles = 5;
     private DataFetchingStrategy dataFetchingStrategy = DataFetchingStrategy.DEFAULT;
 
     @Override
@@ -56,7 +59,8 @@ public class SimpleRecordsFetcherFactory implements RecordsFetcherFactory {
                 idleMillisBetweenCalls,
                 metricsFactory,
                 "ProcessTask",
-                shardId);
+                shardId,
+                new ThrottlingReporter(maxConsecutiveThrottles, shardId));
     }
 
     @Override

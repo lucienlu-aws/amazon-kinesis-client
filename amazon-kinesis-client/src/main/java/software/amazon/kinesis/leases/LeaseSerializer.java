@@ -15,8 +15,8 @@
 package software.amazon.kinesis.leases;
 
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Map;
-
 import software.amazon.awssdk.services.dynamodb.model.AttributeDefinition;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValueUpdate;
@@ -30,7 +30,7 @@ public interface LeaseSerializer {
 
     /**
      * Construct a DynamoDB record out of a Lease object
-     *
+     * 
      * @param lease lease object to serialize
      * @return an attribute value map representing the lease object
      */
@@ -38,11 +38,12 @@ public interface LeaseSerializer {
 
     /**
      * Construct a Lease object out of a DynamoDB record.
-     *
+     * 
      * @param dynamoRecord attribute value map from DynamoDB
      * @return a deserialized lease object representing the attribute value map
      */
     Lease fromDynamoRecord(Map<String, AttributeValue> dynamoRecord);
+
 
     default Lease fromDynamoRecord(Map<String, AttributeValue> dynamoRecord, Lease leaseToUpdate) {
         throw new UnsupportedOperationException();
@@ -56,7 +57,7 @@ public interface LeaseSerializer {
 
     /**
      * Special getDynamoHashKey implementation used by {@link LeaseRefresher#getLease(String)}.
-     *
+     * 
      * @param leaseKey
      * @return the attribute value map representing a Lease's hash key given a string.
      */
@@ -101,6 +102,15 @@ public interface LeaseSerializer {
     Map<String, AttributeValueUpdate> getDynamoTakeLeaseUpdate(Lease lease, String newOwner);
 
     /**
+     * @param lease lease that needs to be assigned
+     * @param newOwner newLeaseOwner
+     * @return the attribute value map that takes a lease for a new owner
+     */
+    default Map<String, AttributeValueUpdate> getDynamoAssignLeaseUpdate(Lease lease, String newOwner) {
+        throw new UnsupportedOperationException("getDynamoAssignLeaseUpdate is not implemented");
+    }
+
+    /**
      * @param lease
      * @return the attribute value map that voids a lease
      */
@@ -127,8 +137,22 @@ public interface LeaseSerializer {
      */
     Collection<KeySchemaElement> getKeySchema();
 
+    default Collection<KeySchemaElement> getWorkerIdToLeaseKeyIndexKeySchema() {
+        return Collections.EMPTY_LIST;
+    }
+
+    default Collection<AttributeDefinition> getWorkerIdToLeaseKeyIndexAttributeDefinitions() {
+        return Collections.EMPTY_LIST;
+    }
+
     /**
      * @return attribute definitions for creating a DynamoDB table to store leases
      */
     Collection<AttributeDefinition> getAttributeDefinitions();
+
+    /**
+     * @param lease
+     * @return the attribute value map that includes lease throughput
+     */
+    Map<String, AttributeValueUpdate> getDynamoLeaseThroughputKbpsUpdate(Lease lease);
 }

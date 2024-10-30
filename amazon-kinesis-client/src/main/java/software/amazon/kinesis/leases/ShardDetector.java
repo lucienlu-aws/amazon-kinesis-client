@@ -93,8 +93,7 @@ public interface ShardDetector {
      * @throws ExecutionException
      * @throws TimeoutException
      */
-    default List<ChildShard> getChildShards(String shardId)
-            throws InterruptedException, ExecutionException, TimeoutException {
+    default List<ChildShard> getChildShards(String shardId) throws InterruptedException, ExecutionException, TimeoutException {
         throw new UnsupportedOperationException("getChildShards not available.");
     }
 }

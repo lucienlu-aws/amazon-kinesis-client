@@ -22,6 +22,5 @@ package software.amazon.kinesis.leases;
  * for backfilling while rolling forward to newer versions.
  */
 public enum UpdateField {
-    CHILD_SHARDS,
-    HASH_KEY_RANGE
+    CHILD_SHARDS, HASH_KEY_RANGE
 }

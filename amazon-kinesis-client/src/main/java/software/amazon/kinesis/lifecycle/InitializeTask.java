@@ -44,25 +44,19 @@ public class InitializeTask implements ConsumerTask {
 
     @NonNull
     private final ShardInfo shardInfo;
-
     @NonNull
     private final ShardRecordProcessor shardRecordProcessor;
-
     @NonNull
     private final Checkpointer checkpoint;
-
     @NonNull
     private final ShardRecordProcessorCheckpointer recordProcessorCheckpointer;
-
     @NonNull
     private final InitialPositionInStreamExtended initialPositionInStream;
-
     @NonNull
     private final RecordsPublisher cache;
 
     // Back off for this interval if we encounter a problem (exception)
     private final long backoffTimeMillis;
-
     @NonNull
     private final MetricsFactory metricsFactory;
 
@@ -84,10 +78,7 @@ public class InitializeTask implements ConsumerTask {
             final String leaseKey = ShardInfo.getLeaseKey(shardInfo);
             Checkpoint initialCheckpointObject = checkpoint.getCheckpointObject(leaseKey);
             ExtendedSequenceNumber initialCheckpoint = initialCheckpointObject.checkpoint();
-            log.debug(
-                    "[{}]: Checkpoint: {} -- Initial Position: {}",
-                    leaseKey,
-                    initialCheckpoint,
+            log.debug("[{}]: Checkpoint: {} -- Initial Position: {}", leaseKey, initialCheckpoint,
                     initialPositionInStream);
 
             cache.start(initialCheckpoint, initialPositionInStream);
@@ -103,8 +94,8 @@ public class InitializeTask implements ConsumerTask {
                     .pendingCheckpointState(initialCheckpointObject.pendingCheckpointState())
                     .build();
 
-            final MetricsScope scope =
-                    MetricsUtil.createMetricsWithOperation(metricsFactory, INITIALIZE_TASK_OPERATION);
+            final MetricsScope scope = MetricsUtil.createMetricsWithOperation(metricsFactory,
+                    INITIALIZE_TASK_OPERATION);
 
             final long startTime = System.currentTimeMillis();
             try {
@@ -146,4 +137,5 @@ public class InitializeTask implements ConsumerTask {
     public TaskType taskType() {
         return taskType;
     }
+
 }

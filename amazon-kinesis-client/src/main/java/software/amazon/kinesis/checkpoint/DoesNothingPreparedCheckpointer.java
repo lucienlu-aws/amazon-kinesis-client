@@ -60,7 +60,9 @@ public class DoesNothingPreparedCheckpointer implements PreparedCheckpointer {
     @Override
     public void checkpoint()
             throws KinesisClientLibDependencyException, InvalidStateException, ThrottlingException, ShutdownException,
-                    IllegalArgumentException {
+            IllegalArgumentException {
         // This method does nothing
     }
+
 }
+
