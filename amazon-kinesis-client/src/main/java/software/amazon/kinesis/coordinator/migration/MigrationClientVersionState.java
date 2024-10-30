@@ -16,7 +16,6 @@ package software.amazon.kinesis.coordinator.migration;
 
 
 import software.amazon.kinesis.leases.exceptions.DependencyException;
-import software.amazon.kinesis.leases.exceptions.InvalidStateException;
 
 /**
  * Interface of a state implementation for the MigrationStateMachine

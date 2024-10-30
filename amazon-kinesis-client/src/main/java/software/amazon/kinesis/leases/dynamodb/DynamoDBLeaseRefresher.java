@@ -304,7 +304,7 @@ public class DynamoDBLeaseRefresher implements LeaseRefresher {
             // If table already on PAY_PER_REQUEST then setting null provisionedThroughput creates the GSI in
             // PAY_PER_REQUEST mode
             if (!isTableInPayPerRequestMode(describeTableResponse)) {
-                /**
+                /*
                  * Whatever is configured at the base table use that as WCU and RCU for the GSI. If this is new
                  * application created with provision mode, the set WCU and RCU will be same as that of what application
                  * provided, if this is old application where application provided WCU and RCU is no longer what is set

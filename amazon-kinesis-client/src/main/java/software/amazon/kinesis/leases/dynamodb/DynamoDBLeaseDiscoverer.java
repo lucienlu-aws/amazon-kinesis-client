@@ -13,7 +13,6 @@ import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import software.amazon.awssdk.services.cloudwatch.model.StandardUnit;
 import software.amazon.kinesis.leases.Lease;
 import software.amazon.kinesis.leases.LeaseDiscoverer;
 import software.amazon.kinesis.leases.LeaseRefresher;

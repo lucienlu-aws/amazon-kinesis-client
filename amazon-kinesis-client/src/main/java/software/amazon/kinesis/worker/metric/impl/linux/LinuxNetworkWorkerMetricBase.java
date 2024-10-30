@@ -49,12 +49,12 @@ public abstract class LinuxNetworkWorkerMetricBase implements WorkerMetric {
         this.stopwatch = stopwatch;
     }
 
-    private long last_rx = -1;
-    private long last_tx = -1;
+    private long lastRx = -1;
+    private long lastTx = -1;
 
     @Override
     public String getShortName() {
-        return _getWorkerMetricsType().getShortName();
+        return getWorkerMetricsType().getShortName();
     }
 
     @Override
@@ -64,7 +64,7 @@ public abstract class LinuxNetworkWorkerMetricBase implements WorkerMetric {
 
     @Override
     public WorkerMetricType getWorkerMetricType() {
-        return _getWorkerMetricsType();
+        return getWorkerMetricsType();
     }
 
     /**
@@ -75,7 +75,7 @@ public abstract class LinuxNetworkWorkerMetricBase implements WorkerMetric {
      */
     @Override
     public WorkerMetricValue capture() {
-        final double percentageOfMaxBandwidth = convertToMBps(calculateNetworkUsage().get(_getWorkerMetricsType()))
+        final double percentageOfMaxBandwidth = convertToMBps(calculateNetworkUsage().get(getWorkerMetricsType()))
                 / maxBandwidthInMBps * 100;
         return WorkerMetricValue.builder()
                 // If maxBandwidthInMBps is less than utilized (could be wrong configuration),
@@ -105,7 +105,7 @@ public abstract class LinuxNetworkWorkerMetricBase implements WorkerMetric {
         return totalDataMB / elapsedTimeInSecond;
     }
 
-    protected abstract WorkerMetricType _getWorkerMetricsType();
+    protected abstract WorkerMetricType getWorkerMetricsType();
 
     /**
      * Returns the absolute bytes in and out since the last invocation of the method.
@@ -115,7 +115,7 @@ public abstract class LinuxNetworkWorkerMetricBase implements WorkerMetric {
         BufferedReader bufferedReader = null;
         try {
             final File net = new File(statFile);
-            if(net.exists()) {
+            if (net.exists()) {
                 bufferedReader = new BufferedReader(new FileReader(net));
 
                 // skip over header lines
@@ -137,24 +137,24 @@ public abstract class LinuxNetworkWorkerMetricBase implements WorkerMetric {
 
                 long rx = Long.parseLong(parts[0]);
                 long tx = Long.parseLong(parts[8]);
-                long diff_rx = -1, diff_tx = -1;
+                long diffRx = -1, diffTx = -1;
                 boolean skip = false;
                 synchronized (lockObject) {
-                    if (last_rx == -1) {
+                    if (lastRx == -1) {
                         skip = true;
                     } else {
-                        diff_rx = Math.abs(rx - last_rx);
-                        diff_tx = Math.abs(tx - last_tx);
+                        diffRx = Math.abs(rx - lastRx);
+                        diffTx = Math.abs(tx - lastTx);
                     }
-                    last_rx = rx;
-                    last_tx = tx;
+                    lastRx = rx;
+                    lastTx = tx;
                 }
 
                 if (skip) {
                     return createResponse(0L, 0L);
                 }
 
-                return createResponse(diff_rx, diff_tx);
+                return createResponse(diffRx, diffTx);
             } else {
                 throw new IllegalArgumentException(
                         String.format("NetworkWorkerMetrics is not configured properly, file : %s does not exists",
@@ -167,17 +167,18 @@ public abstract class LinuxNetworkWorkerMetricBase implements WorkerMetric {
             throw new IllegalArgumentException("Cannot read/parse " + this.statFile, t);
         } finally {
             try {
-                if (bufferedReader != null)
+                if (bufferedReader != null) {
                     bufferedReader.close();
+                }
             } catch (Throwable x) {
                 log.warn("Failed to close bufferedReader ", x);
             }
         }
     }
 
-    private Map<WorkerMetricType, Long> createResponse(final long diff_rx, final long diff_tx) {
+    private Map<WorkerMetricType, Long> createResponse(final long diffRx, final long diffTx) {
         return ImmutableMap.of(
-                WorkerMetricType.NETWORK_IN, diff_rx ,
-                WorkerMetricType.NETWORK_OUT, diff_tx);
+                WorkerMetricType.NETWORK_IN, diffRx,
+                WorkerMetricType.NETWORK_OUT, diffTx);
     }
 }

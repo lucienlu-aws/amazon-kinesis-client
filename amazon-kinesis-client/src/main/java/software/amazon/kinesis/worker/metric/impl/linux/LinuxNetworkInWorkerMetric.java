@@ -28,7 +28,7 @@ public class LinuxNetworkInWorkerMetric extends LinuxNetworkWorkerMetricBase {
     }
 
     @Override
-    protected WorkerMetricType _getWorkerMetricsType() {
+    protected WorkerMetricType getWorkerMetricsType() {
         return NETWORK_IN_WORKER_METRICS_TYPE;
     }
 }

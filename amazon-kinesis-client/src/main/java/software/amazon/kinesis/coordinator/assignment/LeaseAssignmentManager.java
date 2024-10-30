@@ -87,7 +87,7 @@ public final class LeaseAssignmentManager {
     /**
      * Internal threadpool used to parallely perform assignment operation by calling storage.
      */
-    private static final ExecutorService leaseAssignmentCallThreadPool = Executors.newFixedThreadPool(
+    private static final ExecutorService LEASE_ASSIGNMENT_CALL_THREAD_POOL = Executors.newFixedThreadPool(
             Runtime.getRuntime().availableProcessors());
     private static final String METRICS_LEASE_ASSIGNMENT_MANAGER = "LeaseAssignmentManager";
     private static final String METRICS_INCOMPLETE_EXPIRED_LEASES_ASSIGNMENT = "LeaseAssignmentManager.IncompleteExpiredLeasesAssignment";
@@ -279,7 +279,7 @@ public final class LeaseAssignmentManager {
 
             final List<CompletableFuture<Boolean>> completableFutures = staleWorkerMetricsList.stream()
                     .map(workerMetrics -> CompletableFuture.supplyAsync(() -> workerMetricsDAO.deleteMetrics(workerMetrics),
-                            leaseAssignmentCallThreadPool))
+                            LEASE_ASSIGNMENT_CALL_THREAD_POOL))
                     .collect(Collectors.toList());
 
             CompletableFuture.allOf(completableFutures.toArray(new CompletableFuture[0])).join();
@@ -330,7 +330,7 @@ public final class LeaseAssignmentManager {
                     } catch (Exception e) {
                         throw new CompletionException(e);
                     }
-                }, leaseAssignmentCallThreadPool)).toArray(CompletableFuture[]::new)).join();
+                }, LEASE_ASSIGNMENT_CALL_THREAD_POOL)).toArray(CompletableFuture[]::new)).join();
             success = true;
         } finally {
             MetricsUtil.addCount(metricsScope, "FailedAssignmentCount", failedAssignmentCounter.get(), MetricsLevel.DETAILED);
@@ -538,7 +538,7 @@ public final class LeaseAssignmentManager {
                     // If none of the leases has any value, that means its app
                     // startup time and thus assigns 0 in that case to start with.
                     .orElse(0D);
-            /**
+            /*
              * If a workerMetrics has a metric (i.e. has -1 value in last index which denotes failure),
              * skip it from activeWorkerMetrics and no new action on it will be done
              * (new assignment etc.) until the metric has non -1 value in last index. This is to avoid performing action
@@ -633,7 +633,7 @@ public final class LeaseAssignmentManager {
 
         private CompletableFuture<Map.Entry<List<Lease>, List<String>>> loadLeaseListAsync() {
             return CompletableFuture.supplyAsync(() -> loadWithRetry(() -> leaseRefresher.listLeasesParallely(
-                    leaseAssignmentCallThreadPool,
+                    LEASE_ASSIGNMENT_CALL_THREAD_POOL,
                     DEFAULT_LEASE_TABLE_SCAN_PARALLELISM_FACTOR)));
         }
 

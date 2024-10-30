@@ -275,10 +275,10 @@ public class DynamoDBLeaseManagementFactory implements LeaseManagementFactory {
                 shardInfoShardConsumerMap);
     }
 
-    @Override @Deprecated
     /**
-     * @deprecated this is a method part of the public interface in LeaseManagementFactory
+     * Even though this is deprecated, this is a method part of the public interface in LeaseManagementFactory
      */
+    @Override @Deprecated
     public ShardSyncTaskManager createShardSyncTaskManager(@NonNull final MetricsFactory metricsFactory) {
         return new ShardSyncTaskManager(this.createShardDetector(),
                 this.createLeaseRefresher(),
@@ -335,11 +335,11 @@ public class DynamoDBLeaseManagementFactory implements LeaseManagementFactory {
                 tableCreatorCallback, dynamoDbRequestTimeout, ddbTableConfig, leaseTableDeletionProtectionEnabled, tags);
     }
 
+    /**
+     *  Even though this is deprecated, this is a method part of the public interface in LeaseManagementFactory
+     */
     @Override
     @Deprecated
-    /**
-     * @deprecated this is a method part of the public interface in LeaseManagementFactory
-     */
     public ShardDetector createShardDetector() {
         return new KinesisShardDetector(kinesisClient, streamConfig.streamIdentifier(),
                 listShardsBackoffTimeMillis, maxListShardsRetryAttempts, listShardsCacheAllowedAgeInSeconds,

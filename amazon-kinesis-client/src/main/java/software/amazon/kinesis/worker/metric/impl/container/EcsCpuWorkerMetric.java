@@ -130,7 +130,7 @@ public class EcsCpuWorkerMetric implements WorkerMetric {
         // The default if this value is not provided is 2 CPU shares (in ECS agent versions >= 1.2.0)
         int currentContainerCpuShare = 2;
         int containersCpuShareSum = 0;
-        while(containersIterator.hasNext()) {
+        while (containersIterator.hasNext()) {
             final JsonNode containerNode = containersIterator.next();
             final int containerCpuShare = containerNode.path("Limits").path("CPU").asInt();
             if (containerNode.path("DockerId").asText().equals(currentContainerId)) {

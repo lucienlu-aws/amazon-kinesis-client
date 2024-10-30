@@ -27,8 +27,8 @@ public class LinuxCpuWorkerMetric implements WorkerMetric {
     private static final WorkerMetricType CPU_WORKER_METRICS_TYPE = WorkerMetricType.CPU;
     private final OperatingRange operatingRange;
     private final String statFile;
-    private long last_usr, last_iow, last_sys, last_idl, last_tot;
-    private String last_line;
+    private long lastUsr, lastIow, lastSys, lastIdl, lastTot;
+    private String lastLine;
 
     public LinuxCpuWorkerMetric(final OperatingRange operatingRange) {
         this(operatingRange, "/proc/stat");
@@ -62,46 +62,46 @@ public class LinuxCpuWorkerMetric implements WorkerMetric {
                 long idl = Long.parseLong(lineVals[4]);
                 long iow = Long.parseLong(lineVals[5]);
                 long tot = usr + sys + idl + iow;
-                long diff_idl = -1;
-                long diff_tot = -1;
+                long diffIdl = -1;
+                long diffTot = -1;
 
                 boolean skip = false;
                 synchronized (LOCK_OBJECT) {
 
-                    if (last_usr == 0 || line.equals(last_line)) {
+                    if (lastUsr == 0 || line.equals(lastLine)) {
                         // Case where this is a first call so no diff available or
                         // /proc/stat file is not updated since last time.
                         skip = true;
                     }
 
-                    diff_idl = Math.abs(idl - last_idl);
-                    diff_tot = Math.abs(tot - last_tot);
-                    if (diff_tot < diff_idl) {
-                        log.warn("diff_tot is less than diff_idle. \nPrev cpu line : {} and current cpu line : {} ",
-                                last_line,
+                    diffIdl = Math.abs(idl - lastIdl);
+                    diffTot = Math.abs(tot - lastTot);
+                    if (diffTot < diffIdl) {
+                        log.warn("diffTot is less than diff_idle. \nPrev cpu line : {} and current cpu line : {} ",
+                                lastLine,
                                 line);
-                        if (iow < last_iow) {
+                        if (iow < lastIow) {
                             // this is case where current iow value less than prev, this can happen in rare cases as per
                             // https://docs.kernel.org/filesystems/proc.html, and when the worker is idle
-                            // there is no increase in usr or sys values as well resulting in diff_tot < diff_idl as
+                            // there is no increase in usr or sys values as well resulting in diffTot < diffIdl as
                             // current tot increases less than current idl
                             // return 0 in this case as this is the case where worker is not doing anything anyways.
                             skip = true;
                         }
                     }
-                    last_usr = usr;
-                    last_sys = sys;
-                    last_idl = idl;
-                    last_iow = iow;
-                    last_tot = usr + sys + idl + iow;
-                    last_line = line;
+                    lastUsr = usr;
+                    lastSys = sys;
+                    lastIdl = idl;
+                    lastIow = iow;
+                    lastTot = usr + sys + idl + iow;
+                    lastLine = line;
                 }
 
                 if (skip) {
                     return 0D;
                 }
 
-                return ((double) (diff_tot - diff_idl) / (double) diff_tot) * 100.0;
+                return ((double) (diffTot - diffIdl) / (double) diffTot) * 100.0;
 
             } else {
                 throw new IllegalArgumentException(
@@ -115,8 +115,9 @@ public class LinuxCpuWorkerMetric implements WorkerMetric {
             throw new IllegalArgumentException("LinuxCpuWorkerMetric failed to read metric stats or not configured properly.", t);
         } finally {
             try {
-                if (bufferedReader != null)
+                if (bufferedReader != null) {
                     bufferedReader.close();
+                }
             } catch (Throwable x) {
                 log.warn("Failed to close bufferedReader ", x);
             }

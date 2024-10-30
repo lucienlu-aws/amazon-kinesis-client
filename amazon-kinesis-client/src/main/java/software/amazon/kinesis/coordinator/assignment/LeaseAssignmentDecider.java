@@ -1,7 +1,6 @@
 package software.amazon.kinesis.coordinator.assignment;
 
 import java.util.List;
-import java.util.Set;
 
 import software.amazon.kinesis.leases.Lease;
 

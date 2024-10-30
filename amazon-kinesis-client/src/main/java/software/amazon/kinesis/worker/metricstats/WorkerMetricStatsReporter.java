@@ -43,7 +43,7 @@ public class WorkerMetricStatsReporter implements Runnable {
         final long startTime = System.currentTimeMillis();
         boolean success = false;
         try {
-            /**
+            /*
              * OperatingRange value fetched during the initialization and is same afterwards. It's possible
              * to update OperatingRange only in first call and then skip, but we do not want to do that to avoid
              * case where a worker can have a failure for some time and thus does not update the workerMetrics entry

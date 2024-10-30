@@ -143,11 +143,11 @@ public class DynamoDBLeaseSerializer implements LeaseSerializer {
             leaseToUpdate.hashKeyRange(HashKeyRangeForLease.deserialize(startingHashKey, endingHashKey));
         }
 
-        if(DynamoUtils.safeGetDouble(dynamoRecord, THROUGHOUT_PUT_KBPS) != null) {
+        if (DynamoUtils.safeGetDouble(dynamoRecord, THROUGHOUT_PUT_KBPS) != null) {
             leaseToUpdate.throughputKBps(DynamoUtils.safeGetDouble(dynamoRecord, THROUGHOUT_PUT_KBPS));
         }
 
-        if(DynamoUtils.safeGetString(dynamoRecord, CHECKPOINT_OWNER) != null) {
+        if (DynamoUtils.safeGetString(dynamoRecord, CHECKPOINT_OWNER) != null) {
             leaseToUpdate.checkpointOwner(DynamoUtils.safeGetString(dynamoRecord, CHECKPOINT_OWNER));
         }
 

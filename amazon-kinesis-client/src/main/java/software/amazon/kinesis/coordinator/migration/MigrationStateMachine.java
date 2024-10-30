@@ -14,7 +14,6 @@
  */
 package software.amazon.kinesis.coordinator.migration;
 
-import software.amazon.kinesis.coordinator.DynamicMigrationComponentsInitializer;
 import software.amazon.kinesis.leases.exceptions.DependencyException;
 import software.amazon.kinesis.leases.exceptions.InvalidStateException;
 

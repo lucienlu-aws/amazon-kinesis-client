@@ -57,12 +57,12 @@ import static software.amazon.kinesis.coordinator.migration.MigrationState.MIGRA
 @Slf4j
 @ThreadSafe
 public class MigrationClientVersionStateInitializer {
-    private final int MAX_INITIALIZATION_RETRY = 10;
-    private final long INITIALIZATION_RETRY_DELAY_MILLIS = 1000L;
+    private static final int MAX_INITIALIZATION_RETRY = 10;
+    private static final long INITIALIZATION_RETRY_DELAY_MILLIS = 1000L;
     /**
      * A jitter factor of 10% to stagger the retries.
      */
-    private final double JITTER_FACTOR = 0.1;
+    private static final double JITTER_FACTOR = 0.1;
 
     private final Callable<Long> timeProvider;
     private final CoordinatorStateDAO coordinatorStateDAO;

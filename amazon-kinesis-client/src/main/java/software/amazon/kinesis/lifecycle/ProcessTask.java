@@ -193,7 +193,7 @@ public class ProcessTask implements ConsumerTask {
                                                            .mapToInt(record -> record.data().limit())
                                                            .sum())
                                              .leaseKey(ShardInfo.getLeaseKey(shardInfo))
-                                             .build());;
+                                             .build());
     }
 
     private List<KinesisClientRecord> deaggregateAnyKplRecords(List<KinesisClientRecord> records) {

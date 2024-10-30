@@ -178,7 +178,7 @@ public class MigrationStateMachineImpl implements MigrationStateMachine {
      */
     private void enter(final MigrationClientVersionState nextMigrationClientVersionState) throws DependencyException {
         boolean success = false;
-        while(!success) {
+        while (!success) {
             final MetricsScope scope = MetricsUtil.createMetricsWithOperation(metricsFactory,
                 "MigrationStateMachine.StateTransition");
             try {

@@ -227,7 +227,7 @@ public final class VarianceBasedLeaseAssignmentDecider implements LeaseAssignmen
         // sort entries by values.
         Collections.sort(sortedWorkerIdToThroughputToTakeEntries, (e1, e2) -> e2.getValue().compareTo(e1.getValue()));
 
-        for(final Map.Entry<String, Double> workerIdToThroughputToTakeEntry : sortedWorkerIdToThroughputToTakeEntries) {
+        for (final Map.Entry<String, Double> workerIdToThroughputToTakeEntry : sortedWorkerIdToThroughputToTakeEntries) {
             final String workerId = workerIdToThroughputToTakeEntry.getKey();
 
             final double throughputToTake = workerIdToThroughputToTakeEntry.getValue();
