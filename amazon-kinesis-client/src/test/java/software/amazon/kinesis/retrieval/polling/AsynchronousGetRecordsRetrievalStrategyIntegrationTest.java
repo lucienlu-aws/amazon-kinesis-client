@@ -14,31 +14,6 @@
  */
 package software.amazon.kinesis.retrieval.polling;
 
-import java.util.concurrent.CompletionService;
-import java.util.concurrent.ExecutorCompletionService;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.RejectedExecutionHandler;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
-import java.util.function.Supplier;
-
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.mockito.Mock;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.runners.MockitoJUnitRunner;
-import org.mockito.stubbing.Answer;
-import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
-import software.amazon.awssdk.services.kinesis.model.ExpiredIteratorException;
-import software.amazon.awssdk.services.kinesis.model.GetRecordsResponse;
-import software.amazon.kinesis.metrics.MetricsFactory;
-import software.amazon.kinesis.metrics.NullMetricsFactory;
-import software.amazon.kinesis.retrieval.DataFetcherResult;
-
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.IsEqual.equalTo;
@@ -48,6 +23,33 @@ import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+
+import java.util.concurrent.CompletionService;
+import java.util.concurrent.ExecutorCompletionService;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.RejectedExecutionHandler;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
+
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.mockito.Mock;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.runners.MockitoJUnitRunner;
+import org.mockito.stubbing.Answer;
+
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
+
+import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
+import software.amazon.awssdk.services.kinesis.model.ExpiredIteratorException;
+import software.amazon.awssdk.services.kinesis.model.GetRecordsResponse;
+import software.amazon.kinesis.retrieval.DataFetcherResult;
+import software.amazon.kinesis.metrics.MetricsFactory;
+import software.amazon.kinesis.metrics.NullMetricsFactory;
 
 @RunWith(MockitoJUnitRunner.class)
 public class AsynchronousGetRecordsRetrievalStrategyIntegrationTest {
@@ -63,10 +65,8 @@ public class AsynchronousGetRecordsRetrievalStrategyIntegrationTest {
 
     @Mock
     private Supplier<CompletionService<DataFetcherResult>> completionServiceSupplier;
-
     @Mock
     private DataFetcherResult result;
-
     @Mock
     private KinesisAsyncClient kinesisClient;
 
@@ -79,6 +79,7 @@ public class AsynchronousGetRecordsRetrievalStrategyIntegrationTest {
     private RejectedExecutionHandler rejectedExecutionHandler;
     private int numberOfRecords = 10;
 
+
     @Before
     public void setup() {
         dataFetcher = spy(new KinesisDataFetcherForTests(kinesisClient, streamName, shardId, numberOfRecords));
@@ -89,14 +90,11 @@ public class AsynchronousGetRecordsRetrievalStrategyIntegrationTest {
                 TIME_TO_LIVE,
                 TimeUnit.SECONDS,
                 new LinkedBlockingQueue<>(1),
-                new ThreadFactoryBuilder()
-                        .setDaemon(true)
-                        .setNameFormat("getrecords-worker-%d")
-                        .build(),
+                new ThreadFactoryBuilder().setDaemon(true).setNameFormat("getrecords-worker-%d").build(),
                 rejectedExecutionHandler));
         completionService = spy(new ExecutorCompletionService<DataFetcherResult>(executorService));
-        getRecordsRetrivalStrategy = new AsynchronousGetRecordsRetrievalStrategy(
-                dataFetcher, executorService, RETRY_GET_RECORDS_IN_SECONDS, completionServiceSupplier, "shardId-0001");
+        getRecordsRetrivalStrategy = new AsynchronousGetRecordsRetrievalStrategy(dataFetcher, executorService,
+                RETRY_GET_RECORDS_IN_SECONDS, completionServiceSupplier, "shardId-0001");
         getRecordsResponse = GetRecordsResponse.builder().build();
 
         when(completionServiceSupplier.get()).thenReturn(completionService);
@@ -114,8 +112,7 @@ public class AsynchronousGetRecordsRetrievalStrategyIntegrationTest {
 
     @Test
     public void multiRequestTest() {
-        ExecutorCompletionService<DataFetcherResult> completionService1 =
-                spy(new ExecutorCompletionService<DataFetcherResult>(executorService));
+        ExecutorCompletionService<DataFetcherResult> completionService1 = spy(new ExecutorCompletionService<DataFetcherResult>(executorService));
         when(completionServiceSupplier.get()).thenReturn(completionService1);
         GetRecordsResponse getRecordsResult = getRecordsRetrivalStrategy.getRecords(numberOfRecords);
         verify(dataFetcher, atLeast(getLeastNumberOfCalls())).getRecords();
@@ -123,8 +120,7 @@ public class AsynchronousGetRecordsRetrievalStrategyIntegrationTest {
         assertThat(getRecordsResult, equalTo(getRecordsResponse));
 
         when(result.accept()).thenReturn(null);
-        ExecutorCompletionService<DataFetcherResult> completionService2 =
-                spy(new ExecutorCompletionService<DataFetcherResult>(executorService));
+        ExecutorCompletionService<DataFetcherResult> completionService2 = spy(new ExecutorCompletionService<DataFetcherResult>(executorService));
         when(completionServiceSupplier.get()).thenReturn(completionService2);
         getRecordsResult = getRecordsRetrivalStrategy.getRecords(numberOfRecords);
         assertThat(getRecordsResult, nullValue(GetRecordsResponse.class));
@@ -136,9 +132,7 @@ public class AsynchronousGetRecordsRetrievalStrategyIntegrationTest {
             @Override
             public DataFetcherResult answer(final InvocationOnMock invocationOnMock) throws Throwable {
                 Thread.sleep(SLEEP_GET_RECORDS_IN_SECONDS * 1000);
-                throw ExpiredIteratorException.builder()
-                        .message("ExpiredIterator")
-                        .build();
+                throw ExpiredIteratorException.builder().message("ExpiredIterator").build();
             }
         });
 
@@ -168,11 +162,8 @@ public class AsynchronousGetRecordsRetrievalStrategyIntegrationTest {
     }
 
     private class KinesisDataFetcherForTests extends KinesisDataFetcher {
-        public KinesisDataFetcherForTests(
-                final KinesisAsyncClient kinesisClient,
-                final String streamName,
-                final String shardId,
-                final int maxRecords) {
+        public KinesisDataFetcherForTests(final KinesisAsyncClient kinesisClient, final String streamName,
+                                          final String shardId, final int maxRecords) {
             super(kinesisClient, streamName, shardId, maxRecords, NULL_METRICS_FACTORY);
         }
 
@@ -187,4 +178,5 @@ public class AsynchronousGetRecordsRetrievalStrategyIntegrationTest {
             return result;
         }
     }
+
 }

@@ -254,11 +254,14 @@ public final class LeaseAssignmentManager {
     }
 
     private boolean shouldRunVarianceBalancing() {
-        if (this.lamRunCounter % config.varianceBalancingFrequency() == 0) {
-            return true;
-        }
-        this.lamRunCounter++;
-        return false;
+        final boolean response = this.lamRunCounter == 0;
+        /*
+        To avoid lamRunCounter grow large, keep it within [0,varianceBalancingFrequency).
+        If varianceBalancingFrequency is 5 lamRunCounter value will be within 0 to 4 and method return true when
+        lamRunCounter is 0.
+         */
+        this.lamRunCounter = (this.lamRunCounter + 1) % config.varianceBalancingFrequency();
+        return response;
     }
 
     /**
@@ -485,7 +488,7 @@ public final class LeaseAssignmentManager {
             final CompletableFuture<Map.Entry<List<Lease>, List<String>>> leaseListFuture =
                     loadLeaseListAsync();
 
-            final CompletableFuture<List<WorkerMetricStats>> workerMetricsFuture = loadWorkerMetrics();
+            final CompletableFuture<List<WorkerMetricStats>> workerMetricsFuture = loadWorkerMetricStats();
 
             final List<WorkerMetricStats> workerMetricsFromStorage = workerMetricsFuture.join();
 
@@ -548,7 +551,8 @@ public final class LeaseAssignmentManager {
                     .filter(workerMetrics -> workerMetrics.getLastUpdateTime() >= workerExpiryThreshold &&
                             !workerMetrics.isAnyWorkerMetricFailing()).collect(Collectors.toList());
             log.info("activeWorkerMetrics : {}", activeWorkerMetrics.size());
-            targetAverageThroughput = averageLeaseThroughput * leaseList.size() / activeWorkerMetrics.size();
+            targetAverageThroughput =
+                    averageLeaseThroughput * leaseList.size() / Math.max(1, activeWorkerMetrics.size());
             leaseList.forEach(lease -> {
                 if (isNull(lease.throughputKBps())) {
                     // If the lease is unassigned, it will not have any throughput value, use average throughput
@@ -627,8 +631,8 @@ public final class LeaseAssignmentManager {
             return workerToTotalAssignedThroughputMap.getOrDefault(workerId, 0D);
         }
 
-        private CompletableFuture<List<WorkerMetricStats>> loadWorkerMetrics() {
-            return CompletableFuture.supplyAsync(() -> loadWithRetry(workerMetricsDAO::getAllWorkerMetrics));
+        private CompletableFuture<List<WorkerMetricStats>> loadWorkerMetricStats() {
+            return CompletableFuture.supplyAsync(() -> loadWithRetry(workerMetricsDAO::getAllWorkerMetricStats));
         }
 
         private CompletableFuture<Map.Entry<List<Lease>, List<String>>> loadLeaseListAsync() {

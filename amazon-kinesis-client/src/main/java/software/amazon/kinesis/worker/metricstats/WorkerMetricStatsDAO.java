@@ -137,17 +137,17 @@ public class WorkerMetricStatsDAO {
     }
 
     /**
-     * Performs the scan on the storage and returns list of all workerMetrics objects.
+     * Performs the scan on the storage and returns list of all workerMetricStats objects.
      *
-     * @return : List of all workerMetrics
+     * @return : List of all worker metric stats
      */
-    public List<WorkerMetricStats> getAllWorkerMetrics() {
+    public List<WorkerMetricStats> getAllWorkerMetricStats() {
         log.debug("Scanning DDB table {}", table.tableName());
-        final List<WorkerMetricStats> workerMetrics = new ArrayList<>();
+        final List<WorkerMetricStats> workerMetricStats = new ArrayList<>();
         unwrappingFuture(() -> table.scan()
                                     .items()
-                                    .subscribe(workerMetrics::add));
-        return workerMetrics;
+                                    .subscribe(workerMetricStats::add));
+        return workerMetricStats;
     }
 
     private TableDescription getTableDescription() {

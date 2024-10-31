@@ -22,4 +22,5 @@ public class TestRecordProcessorFactory implements ShardRecordProcessorFactory {
     public ShardRecordProcessor shardRecordProcessor(StreamIdentifier streamIdentifier) {
         return new TestRecordProcessor(streamIdentifier, this.recordValidator);
     }
+
 }

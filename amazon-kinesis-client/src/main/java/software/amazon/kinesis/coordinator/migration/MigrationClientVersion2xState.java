@@ -34,6 +34,8 @@ import java.util.concurrent.ScheduledExecutorService;
 
 import static software.amazon.kinesis.coordinator.migration.ClientVersion.CLIENT_VERSION_2x;
 import static software.amazon.kinesis.coordinator.migration.ClientVersion.CLIENT_VERSION_UPGRADE_FROM_2x;
+import static software.amazon.kinesis.coordinator.migration.MigrationStateMachineImpl.FAULT_METRIC;
+import static software.amazon.kinesis.coordinator.migration.MigrationStateMachineImpl.METRICS_OPERATION;
 
 /**
  * State for CLIENT_VERSION_2x. In this state, the only allowed valid transition is
@@ -64,25 +66,19 @@ public class MigrationClientVersion2xState implements MigrationClientVersionStat
     @Override
     public synchronized void enter(final ClientVersion fromClientVersion) {
         if (!entered) {
-            final MetricsScope scope = MetricsUtil.createMetricsWithOperation(initializer.metricsFactory(),
-                "MigrationStateMachine");
-            try {
-                log.info("Entering {} from {}", this, fromClientVersion);
-                initializer.initializeClientVersionFor2x(fromClientVersion);
+            log.info("Entering {} from {}", this, fromClientVersion);
+            initializer.initializeClientVersionFor2x(fromClientVersion);
 
-                log.info("Starting roll-forward monitor");
-                rollForwardMonitor = new ClientVersionChangeMonitor(
-                    coordinatorStateDAO,
-                    stateMachineThreadPool,
-                    this::onClientVersionChange,
-                    clientVersion(),
-                    random);
-                rollForwardMonitor.startMonitor();
-                entered = true;
-            } finally {
-                scope.addData("RollbackFrom3x", entered ? 1 : 0, StandardUnit.COUNT, MetricsLevel.SUMMARY);
-                MetricsUtil.endScope(scope);
-            }
+            log.info("Starting roll-forward monitor");
+            rollForwardMonitor = new ClientVersionChangeMonitor(
+                initializer.metricsFactory(),
+                coordinatorStateDAO,
+                stateMachineThreadPool,
+                this::onClientVersionChange,
+                clientVersion(),
+                random);
+            rollForwardMonitor.startMonitor();
+            entered = true;
         } else {
             log.info("Not entering {}", left ? "already exited state" : "already entered state");
         }
@@ -118,15 +114,13 @@ public class MigrationClientVersion2xState implements MigrationClientVersionStat
             return;
         }
         final MetricsScope scope = MetricsUtil.createMetricsWithOperation(initializer.metricsFactory(),
-            "MigrationStateMachine.ClientVersionChangeHandler");
-        boolean success = false;
+            METRICS_OPERATION);
         try {
             if (newState.getClientVersion() == CLIENT_VERSION_UPGRADE_FROM_2x) {
                 log.info("A roll-forward has been initiated for the application. Transition to {}",
                     CLIENT_VERSION_UPGRADE_FROM_2x);
                 // If this succeeds, the monitor will cancel itself.
                 stateMachine.transitionTo(CLIENT_VERSION_UPGRADE_FROM_2x, newState);
-                success = true;
             } else {
                 // This should not happen, so throw an exception that allows the monitor to continue monitoring
                 // changes, this allows KCL to operate in the current state and keep monitoring until a valid
@@ -141,8 +135,10 @@ public class MigrationClientVersion2xState implements MigrationClientVersionStat
                     CLIENT_VERSION_2x);
                 throw new InvalidStateException(String.format("Unexpected new state %s", newState));
             }
+        } catch (final InvalidStateException | DependencyException e) {
+            scope.addData(FAULT_METRIC, 1, StandardUnit.COUNT, MetricsLevel.SUMMARY);
+            throw e;
         } finally {
-            MetricsUtil.addSuccess(scope, null, success, MetricsLevel.SUMMARY);
             MetricsUtil.endScope(scope);
         }
     }

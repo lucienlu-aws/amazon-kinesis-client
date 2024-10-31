@@ -17,9 +17,14 @@ package software.amazon.kinesis.coordinator.migration;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import software.amazon.awssdk.annotations.ThreadSafe;
+import software.amazon.awssdk.services.cloudwatch.model.StandardUnit;
 import software.amazon.kinesis.coordinator.CoordinatorStateDAO;
 import software.amazon.kinesis.leases.exceptions.DependencyException;
 import software.amazon.kinesis.leases.exceptions.InvalidStateException;
+import software.amazon.kinesis.metrics.MetricsFactory;
+import software.amazon.kinesis.metrics.MetricsLevel;
+import software.amazon.kinesis.metrics.MetricsScope;
+import software.amazon.kinesis.metrics.MetricsUtil;
 
 import java.time.Duration;
 import java.util.Random;
@@ -28,6 +33,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 import static software.amazon.kinesis.coordinator.migration.MigrationState.MIGRATION_HASH_KEY;
+import static software.amazon.kinesis.coordinator.migration.MigrationStateMachineImpl.METRICS_OPERATION;
 
 /**
  * Change monitor for MigrationState.clientVersion to notify a callback if the value
@@ -55,6 +61,7 @@ public class ClientVersionChangeMonitor implements Runnable {
     private static final long MONITOR_INTERVAL_MILLIS = Duration.ofMinutes(1).toMillis();
     private static final double JITTER_FACTOR = 0.1;
 
+    private final MetricsFactory metricsFactory;
     private final CoordinatorStateDAO coordinatorStateDAO;
     private final ScheduledExecutorService stateMachineThreadPool;
     private final ClientVersionChangeCallback callback;
@@ -118,12 +125,33 @@ public class ClientVersionChangeMonitor implements Runnable {
                     scheduledFuture.cancel(false);
                     scheduledFuture = null;
                 } else {
+                    emitMetrics();
                     log.debug("No change detected {}", this);
                 }
             }
         } catch (final Exception e) {
             log.warn("Exception occurred when monitoring for client version change from {}, will retry in {}",
                 expectedVersion, monitorIntervalMillis, e);
+        }
+    }
+
+    private void emitMetrics() {
+        final MetricsScope scope = MetricsUtil.createMetricsWithOperation(metricsFactory, METRICS_OPERATION);
+        try {
+            switch (expectedVersion) {
+                case CLIENT_VERSION_3x_WITH_ROLLBACK:
+                    scope.addData("CurrentState:3xWorker", 1, StandardUnit.COUNT, MetricsLevel.SUMMARY);
+                    break;
+                case CLIENT_VERSION_2x:
+                case CLIENT_VERSION_UPGRADE_FROM_2x:
+                    scope.addData("CurrentState:2xCompatibleWorker", 1, StandardUnit.COUNT,
+                        MetricsLevel.SUMMARY);
+                    break;
+                default:
+                    throw new IllegalStateException(String.format("Unexpected version %s", expectedVersion.name()));
+            }
+        } finally {
+            MetricsUtil.endScope(scope);
         }
     }
 }

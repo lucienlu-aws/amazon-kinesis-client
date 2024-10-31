@@ -14,10 +14,10 @@
  */
 package software.amazon.kinesis.checkpoint;
 
-import java.util.Optional;
-
 import org.junit.Before;
 import org.junit.Test;
+
+import java.util.Optional;
 
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.not;
@@ -32,6 +32,7 @@ public class SequenceNumberValidatorTest {
         validator = new SequenceNumberValidator();
     }
 
+
     @Test
     public void matchingSequenceNumberTest() {
         String sequenceNumber = "49587497311274533994574834252742144236107130636007899138";
@@ -43,8 +44,7 @@ public class SequenceNumberValidatorTest {
         Optional<String> shardId = validator.shardIdFor(sequenceNumber);
         assertThat(shardId, equalTo(Optional.of(expectedShardId)));
 
-        assertThat(
-                validator.validateSequenceNumberForShard(sequenceNumber, expectedShardId), equalTo(Optional.of(true)));
+        assertThat(validator.validateSequenceNumberForShard(sequenceNumber, expectedShardId), equalTo(Optional.of(true)));
     }
 
     @Test
@@ -58,8 +58,7 @@ public class SequenceNumberValidatorTest {
         Optional<String> shardId = validator.shardIdFor(sequenceNumber);
         assertThat(shardId, not(equalTo(invalidShardId)));
 
-        assertThat(
-                validator.validateSequenceNumberForShard(sequenceNumber, invalidShardId), equalTo(Optional.of(false)));
+        assertThat(validator.validateSequenceNumberForShard(sequenceNumber, invalidShardId), equalTo(Optional.of(false)));
     }
 
     @Test
@@ -73,8 +72,7 @@ public class SequenceNumberValidatorTest {
         Optional<String> shardId = validator.shardIdFor(sequenceNumber);
         assertThat(shardId, equalTo(Optional.empty()));
 
-        assertThat(
-                validator.validateSequenceNumberForShard(sequenceNumber, expectedShardId), equalTo(Optional.empty()));
+        assertThat(validator.validateSequenceNumberForShard(sequenceNumber, expectedShardId), equalTo(Optional.empty()));
     }
 
     @Test
@@ -85,8 +83,7 @@ public class SequenceNumberValidatorTest {
         assertThat(validator.versionFor(sequenceNumber), equalTo(Optional.empty()));
         assertThat(validator.shardIdFor(sequenceNumber), equalTo(Optional.empty()));
 
-        assertThat(
-                validator.validateSequenceNumberForShard(sequenceNumber, expectedShardId), equalTo(Optional.empty()));
+        assertThat(validator.validateSequenceNumberForShard(sequenceNumber, expectedShardId), equalTo(Optional.empty()));
     }
 
     @Test
@@ -97,7 +94,8 @@ public class SequenceNumberValidatorTest {
         assertThat(validator.versionFor(sequenceNumber), equalTo(Optional.empty()));
         assertThat(validator.shardIdFor(sequenceNumber), equalTo(Optional.empty()));
 
-        assertThat(
-                validator.validateSequenceNumberForShard(sequenceNumber, expectedShardId), equalTo(Optional.empty()));
+        assertThat(validator.validateSequenceNumberForShard(sequenceNumber, expectedShardId), equalTo(Optional.empty()));
     }
+
+
 }

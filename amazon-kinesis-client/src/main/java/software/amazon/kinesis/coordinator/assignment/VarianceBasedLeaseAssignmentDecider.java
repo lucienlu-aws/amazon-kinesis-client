@@ -240,8 +240,10 @@ public final class VarianceBasedLeaseAssignmentDecider implements LeaseAssignmen
 
             for (final Lease lease : leasesToTake) {
                 final WorkerMetricStats workerToAssign = assignableWorkerSortedByAvailableCapacity.poll();
-                if (nonNull(workerToAssign) && workerToAssign.isAnyWorkerMetricAboveAverageUtilizationOrOperatingRange(
-                        workerMetricsToFleetLevelAverageMap)) {
+                if (nonNull(workerToAssign) && workerToAssign.willAnyMetricStatsGoAboveAverageUtilizationOrOperatingRange(
+                        workerMetricsToFleetLevelAverageMap,
+                        inMemoryStorageView.getTargetAverageThroughput(),
+                        lease.throughputKBps(), targetLeasePerWorker)) {
                     log.info("No worker to assign anymore in this iteration due to hitting average values");
                     break;
                 }
@@ -262,12 +264,9 @@ public final class VarianceBasedLeaseAssignmentDecider implements LeaseAssignmen
             return new ArrayDeque<>();
         }
 
-        if (existingLeases.size() == 1 || inMemoryStorageView.getTotalAssignedThroughput(workerId) == 0D) {
-            // Either the worker has single lease assigned to it or throughput of this worker is zero
-            // Later could be the case when no data in any of the lease is available so total throughput is zero and this
-            // worker has high utilization.
-            // In either case take the single lease as with zero throughput don't have a better way to figure out leases
-            // to take.
+        if (inMemoryStorageView.getTotalAssignedThroughput(workerId) == 0D) {
+            // This is the case where throughput of this worker is zero and have 1 or more leases assigned.
+            // Its not possible to determine leases to take based on throughput so simply take 1 lease and move on.
             return new ArrayDeque<>(new ArrayList<>(existingLeases).subList(0, 1));
         }
 
@@ -281,13 +280,10 @@ public final class VarianceBasedLeaseAssignmentDecider implements LeaseAssignmen
             assignableWorkerSortedByAvailableCapacity.add(workerMetrics);
             return;
         }
-        final double workerCurrentThroughput =
-                inMemoryStorageView.getTotalAssignedThroughput(workerMetrics.getWorkerId());
-        if (workerCurrentThroughput != 0D && lease.throughputKBps() <= workerCurrentThroughput) {
-            workerMetrics.extrapolateMetricStatValuesForAddedThroughput(lease.throughputKBps() / workerCurrentThroughput);
-        } else {
-            workerMetrics.extrapolateMetricStatValuesForAddedLease(workerMetricsToFleetLevelAverageMap, targetLeasePerWorker);
-        }
+        workerMetrics.extrapolateMetricStatValuesForAddedThroughput(workerMetricsToFleetLevelAverageMap,
+                inMemoryStorageView.getTargetAverageThroughput(),
+                lease.throughputKBps(),
+                targetLeasePerWorker);
         log.info("Assigning lease : {} to worker : {}", lease.leaseKey(), workerMetrics.getWorkerId());
         inMemoryStorageView.performLeaseAssignment(lease, workerMetrics.getWorkerId());
         if (inMemoryStorageView.isWorkerTotalThroughputLessThanMaxThroughput(workerMetrics.getWorkerId()) &&

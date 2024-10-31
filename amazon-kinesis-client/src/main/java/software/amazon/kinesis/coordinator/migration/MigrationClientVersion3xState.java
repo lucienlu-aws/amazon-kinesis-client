@@ -17,13 +17,9 @@ package software.amazon.kinesis.coordinator.migration;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import software.amazon.awssdk.annotations.ThreadSafe;
-import software.amazon.awssdk.services.cloudwatch.model.StandardUnit;
 import software.amazon.kinesis.annotations.KinesisClientInternalApi;
 import software.amazon.kinesis.coordinator.DynamicMigrationComponentsInitializer;
 import software.amazon.kinesis.leases.exceptions.DependencyException;
-import software.amazon.kinesis.metrics.MetricsLevel;
-import software.amazon.kinesis.metrics.MetricsScope;
-import software.amazon.kinesis.metrics.MetricsUtil;
 
 /**
  * State for CLIENT_VERSION_3x which enables KCL to run 3.x algorithms on new KCLv3.x application
@@ -48,16 +44,9 @@ public class MigrationClientVersion3xState implements MigrationClientVersionStat
     @Override
     public synchronized void enter(final ClientVersion fromClientVersion) throws DependencyException {
         if (!entered) {
-            final MetricsScope scope = MetricsUtil.createMetricsWithOperation(initializer.metricsFactory(),
-                "MigrationStateMachine");
-            try {
-                log.info("Entering {} from {}", this, fromClientVersion);
-                initializer.initializeClientVersionFor3x(fromClientVersion);
-                entered = true;
-            } finally {
-                scope.addData("3x", entered ? 1 : 0, StandardUnit.COUNT, MetricsLevel.SUMMARY);
-                MetricsUtil.endScope(scope);
-            }
+            log.info("Entering {} from {}", this, fromClientVersion);
+            initializer.initializeClientVersionFor3x(fromClientVersion);
+            entered = true;
         } else {
             log.info("Not entering {}", left ? "already exited state" : "already entered state");
         }

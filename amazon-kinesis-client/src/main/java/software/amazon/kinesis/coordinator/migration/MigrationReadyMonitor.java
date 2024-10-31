@@ -42,6 +42,8 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import static software.amazon.kinesis.coordinator.migration.MigrationStateMachineImpl.METRICS_OPERATION;
+
 /**
  * Monitor for KCL workers 3.x readiness. This monitor is started on all workers but only
  * executed on the leader of the fleet. The leader determines 3.x readiness if GSI of the lease
@@ -66,8 +68,8 @@ public class MigrationReadyMonitor implements Runnable {
     private final Callable<Long> timeProvider;
     private final LeaderDecider leaderDecider;
     private final String currentWorkerId;
-    private final WorkerMetricStatsDAO workerMetricsDAO;
-    private final long workerMetricsExpirySeconds;
+    private final WorkerMetricStatsDAO workerMetricStatsDAO;
+    private final long workerMetricStatsExpirySeconds;
     private final LeaseRefresher leaseRefresher;
     private final ScheduledExecutorService stateMachineThreadPool;
     private final MonitorTriggerStabilizer triggerStabilizer;
@@ -79,9 +81,9 @@ public class MigrationReadyMonitor implements Runnable {
     private Set<String> lastKnownUniqueLeaseOwners = new HashSet<>();
     private Set<String> lastKnownWorkersWithActiveWorkerMetrics =  new HashSet<>();
 
-    public MigrationReadyMonitor(final MetricsFactory metricsFactory,
-        final Callable<Long> timeProvider, final LeaderDecider leaderDecider,
-        final String currentWorkerId, final WorkerMetricStatsDAO workerMetricsDAO, final long workerMetricsExpirySeconds,
+    public MigrationReadyMonitor(final MetricsFactory metricsFactory, final Callable<Long> timeProvider,
+        final LeaderDecider leaderDecider, final String currentWorkerId,
+        final WorkerMetricStatsDAO workerMetricStatsDAO, final long workerMetricsExpirySeconds,
         final LeaseRefresher leaseRefresher, final ScheduledExecutorService stateMachineThreadPool,
         final Runnable callback, final long callbackStabilizationInSeconds)
     {
@@ -89,8 +91,8 @@ public class MigrationReadyMonitor implements Runnable {
         this.timeProvider = timeProvider;
         this.leaderDecider = leaderDecider;
         this.currentWorkerId = currentWorkerId;
-        this.workerMetricsDAO = workerMetricsDAO;
-        this.workerMetricsExpirySeconds = workerMetricsExpirySeconds;
+        this.workerMetricStatsDAO = workerMetricStatsDAO;
+        this.workerMetricStatsExpirySeconds = workerMetricsExpirySeconds;
         this.leaseRefresher = leaseRefresher;
         this.stateMachineThreadPool = stateMachineThreadPool;
         this.triggerStabilizer = new MonitorTriggerStabilizer(timeProvider, callbackStabilizationInSeconds, callback,
@@ -99,17 +101,10 @@ public class MigrationReadyMonitor implements Runnable {
 
     public synchronized void startMonitor() {
         if (Objects.isNull(scheduledFuture)) {
-            final MetricsScope scope = MetricsUtil.createMetricsWithOperation(metricsFactory,
-                "MigrationReadyMonitor.Start");
-            try {
-                log.info("Starting migration ready monitor");
-                scheduledFuture = stateMachineThreadPool.scheduleWithFixedDelay(this, MONITOR_INTERVAL_MILLIS,
-                    MONITOR_INTERVAL_MILLIS, TimeUnit.MILLISECONDS);
-            } finally {
-                MetricsUtil.addWorkerIdentifier(scope, currentWorkerId);
-                MetricsUtil.addSuccess(scope, null, true, MetricsLevel.SUMMARY);
-                MetricsUtil.endScope(scope);
-            }
+
+            log.info("Starting migration ready monitor");
+            scheduledFuture = stateMachineThreadPool.scheduleWithFixedDelay(this, MONITOR_INTERVAL_MILLIS,
+                MONITOR_INTERVAL_MILLIS, TimeUnit.MILLISECONDS);
         } else {
             log.info("Ignoring monitor request, since it is already started");
         }
@@ -131,9 +126,6 @@ public class MigrationReadyMonitor implements Runnable {
 
     @Override
     public synchronized void run() {
-        final MetricsScope scope = MetricsUtil.createMetricsWithOperation(metricsFactory,
-            "MigrationReadyMonitor.Run");
-        boolean success = false;
         try {
             if (Thread.currentThread().isInterrupted()) {
                 log.info("{} cancelled, exiting...", this);
@@ -144,19 +136,13 @@ public class MigrationReadyMonitor implements Runnable {
                 triggerStabilizer.reset();
                 lastKnownUniqueLeaseOwners.clear();
                 lastKnownWorkersWithActiveWorkerMetrics.clear();
-                success = true;
                 return;
             }
 
             triggerStabilizer.call(isReadyForUpgradeTo3x());
             rateLimitedStatusLogger.log(() -> log.info("Monitor ran successfully {}", this));
-            success = true;
-
         } catch (final Throwable t) {
             log.warn("{} failed, will retry after {}", this, MONITOR_INTERVAL_MILLIS, t);
-        } finally {
-            MetricsUtil.addSuccess(scope, null, success, MetricsLevel.SUMMARY);
-            MetricsUtil.endScope(scope);
         }
     }
 
@@ -172,8 +158,7 @@ public class MigrationReadyMonitor implements Runnable {
     }
 
     private boolean isReadyForUpgradeTo3x() throws DependencyException {
-        final MetricsScope scope = MetricsUtil.createMetricsWithOperation(metricsFactory,
-            "MigrationStateMachine");
+        final MetricsScope scope = MetricsUtil.createMetricsWithOperation(metricsFactory, METRICS_OPERATION);
         try {
             // If GSI is not ready, optimize to not check if worker metrics are being emitted
             final boolean localGsiReadyStatus = leaseRefresher.isLeaseOwnerToLeaseKeyIndexActive();
@@ -195,12 +180,12 @@ public class MigrationReadyMonitor implements Runnable {
 
     private boolean areLeaseOwnersEmittingWorkerMetrics() {
         final CompletableFuture<List<Lease>> leaseListFuture = loadLeaseListAsync();
-        final CompletableFuture<List<WorkerMetricStats>> workerMetricsFuture = loadWorkerMetrics();
+        final CompletableFuture<List<WorkerMetricStats>> workerMetricsFuture = loadWorkerMetricStats();
 
         final List<Lease> leaseList = leaseListFuture.join();
         final Set<String> leaseOwners = getUniqueLeaseOwnersFromLeaseTable(leaseList);
-        final List<WorkerMetricStats> workerMetricsList = workerMetricsFuture.join();
-        final Set<String> workersWithActiveWorkerMetrics = getWorkerWithActiveWorkerMetrics(workerMetricsList);
+        final List<WorkerMetricStats> workerMetricStatsList = workerMetricsFuture.join();
+        final Set<String> workersWithActiveWorkerMetrics = getWorkersWithActiveWorkerMetricStats(workerMetricStatsList);
 
         // Leases are not checked for expired condition because:
         // If some worker has gone down and is not active, but has lease assigned to it, those leases
@@ -214,7 +199,7 @@ public class MigrationReadyMonitor implements Runnable {
             workerMetricsReady = localWorkerMetricsReady;
             log.info("WorkerMetricStats status changed to {}", workerMetricsReady);
             log.info("Lease List {}", leaseList);
-            log.info("WorkerMetricStats {}", workerMetricsList);
+            log.info("WorkerMetricStats {}", workerMetricStatsList);
         } else {
             log.debug("WorkerMetricStats ready status {}", workerMetricsReady);
         }
@@ -227,9 +212,9 @@ public class MigrationReadyMonitor implements Runnable {
         lastKnownUniqueLeaseOwners = leaseOwners;
 
         if (lastKnownWorkersWithActiveWorkerMetrics == null) {
-            log.info("Workers with active worker metrics {}", workersWithActiveWorkerMetrics);
+            log.info("Workers with active worker metric stats {}", workersWithActiveWorkerMetrics);
         } else if (!lastKnownWorkersWithActiveWorkerMetrics.equals(workersWithActiveWorkerMetrics)) {
-            log.info("Workers with active worker metrics changed {}", workersWithActiveWorkerMetrics);
+            log.info("Workers with active worker metric stats changed {}", workersWithActiveWorkerMetrics);
         }
         lastKnownWorkersWithActiveWorkerMetrics = workersWithActiveWorkerMetrics;
 
@@ -240,20 +225,20 @@ public class MigrationReadyMonitor implements Runnable {
         return leaseList.stream().map(Lease::leaseOwner).collect(Collectors.toSet());
     }
 
-    private Set<String> getWorkerWithActiveWorkerMetrics(final List<WorkerMetricStats> workerMetricsList) {
+    private Set<String> getWorkersWithActiveWorkerMetricStats(final List<WorkerMetricStats> workerMetricStats) {
         final long nowInSeconds = Duration.ofMillis(now(timeProvider)).getSeconds();
-        return workerMetricsList.stream()
-                .filter(metrics -> isWorkerMetricsActive(metrics, nowInSeconds))
+        return workerMetricStats.stream()
+                .filter(metricStats -> isWorkerMetricStatsActive(metricStats, nowInSeconds))
                 .map(WorkerMetricStats::getWorkerId)
                 .collect(Collectors.toSet());
     }
 
-    private boolean isWorkerMetricsActive(final WorkerMetricStats metrics, final long nowInSeconds) {
-        return (metrics.getLastUpdateTime() + workerMetricsExpirySeconds) > nowInSeconds;
+    private boolean isWorkerMetricStatsActive(final WorkerMetricStats metricStats, final long nowInSeconds) {
+        return (metricStats.getLastUpdateTime() + workerMetricStatsExpirySeconds) > nowInSeconds;
     }
 
-    private CompletableFuture<List<WorkerMetricStats>> loadWorkerMetrics() {
-        return CompletableFuture.supplyAsync(() -> loadWithRetry(workerMetricsDAO::getAllWorkerMetrics));
+    private CompletableFuture<List<WorkerMetricStats>> loadWorkerMetricStats() {
+        return CompletableFuture.supplyAsync(() -> loadWithRetry(workerMetricStatsDAO::getAllWorkerMetricStats));
     }
 
     private CompletableFuture<List<Lease>> loadLeaseListAsync() {

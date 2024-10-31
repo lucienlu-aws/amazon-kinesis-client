@@ -14,6 +14,10 @@
  */
 package software.amazon.kinesis.leases.dynamodb;
 
+import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
 import java.util.UUID;
 
 import org.junit.Before;
@@ -21,6 +25,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.runners.MockitoJUnitRunner;
+
 import software.amazon.kinesis.checkpoint.dynamodb.DynamoDBCheckpointer;
 import software.amazon.kinesis.exceptions.KinesisClientLibException;
 import software.amazon.kinesis.exceptions.ShutdownException;
@@ -32,10 +37,6 @@ import software.amazon.kinesis.leases.exceptions.InvalidStateException;
 import software.amazon.kinesis.leases.exceptions.ProvisionedThroughputException;
 import software.amazon.kinesis.retrieval.kpl.ExtendedSequenceNumber;
 
-import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-
 @RunWith(MockitoJUnitRunner.class)
 public class DynamoDBCheckpointerTest {
     private static final String SHARD_ID = "shardId-test";
@@ -45,7 +46,6 @@ public class DynamoDBCheckpointerTest {
 
     @Mock
     private LeaseRefresher leaseRefresher;
-
     @Mock
     private LeaseCoordinator leaseCoordinator;
 
@@ -58,13 +58,11 @@ public class DynamoDBCheckpointerTest {
     }
 
     @Test(expected = ShutdownException.class)
-    public void testSetCheckpointWithUnownedShardId()
-            throws KinesisClientLibException, DependencyException, InvalidStateException,
-                    ProvisionedThroughputException {
+    public void testSetCheckpointWithUnownedShardId() throws KinesisClientLibException, DependencyException,
+            InvalidStateException, ProvisionedThroughputException {
         final Lease lease = new Lease();
         when(leaseCoordinator.getCurrentlyHeldLease(eq(SHARD_ID))).thenReturn(lease);
-        when(leaseCoordinator.updateLease(eq(lease), eq(TEST_UUID), eq(OPERATION), eq(SHARD_ID)))
-                .thenReturn(false);
+        when(leaseCoordinator.updateLease(eq(lease), eq(TEST_UUID), eq(OPERATION), eq(SHARD_ID))).thenReturn(false);
         try {
             dynamoDBCheckpointer.setCheckpoint(SHARD_ID, TEST_CHKPT, TEST_UUID.toString());
         } finally {
@@ -73,11 +71,11 @@ public class DynamoDBCheckpointerTest {
         }
     }
 
-    //    @Test(expected = DependencyException.class)
-    //    public void testWaitLeaseTableTimeout()
-    //        throws DependencyException, ProvisionedThroughputException, IllegalStateException {
-    //         Set mock lease manager to return false in waiting
-    //        doReturn(false).when(leaseRefresher).waitUntilLeaseTableExists(anyLong(), anyLong());
-    //        leaseCoordinator.initialize();
-    //    }
+//    @Test(expected = DependencyException.class)
+//    public void testWaitLeaseTableTimeout()
+//        throws DependencyException, ProvisionedThroughputException, IllegalStateException {
+//         Set mock lease manager to return false in waiting
+//        doReturn(false).when(leaseRefresher).waitUntilLeaseTableExists(anyLong(), anyLong());
+//        leaseCoordinator.initialize();
+//    }
 }

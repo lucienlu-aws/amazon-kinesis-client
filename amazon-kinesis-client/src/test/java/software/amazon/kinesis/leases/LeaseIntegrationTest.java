@@ -14,14 +14,17 @@
  */
 package software.amazon.kinesis.leases;
 
-import lombok.extern.slf4j.Slf4j;
 import org.junit.Rule;
 import org.junit.rules.TestWatcher;
 import org.junit.runner.Description;
 import org.mockito.Mock;
+
+import lombok.extern.slf4j.Slf4j;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
+import software.amazon.awssdk.core.util.DefaultSdkAutoConstructList;
 import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient;
 import software.amazon.awssdk.services.dynamodb.model.BillingMode;
+import software.amazon.kinesis.common.DdbTableConfig;
 import software.amazon.kinesis.leases.dynamodb.DynamoDBLeaseRefresher;
 import software.amazon.kinesis.leases.dynamodb.DynamoDBLeaseSerializer;
 import software.amazon.kinesis.leases.dynamodb.TableCreatorCallback;
@@ -32,8 +35,7 @@ public class LeaseIntegrationTest {
 
     protected static DynamoDBLeaseRefresher leaseRefresher;
     protected static DynamoDbAsyncClient ddbClient = DynamoDbAsyncClient.builder()
-            .credentialsProvider(DefaultCredentialsProvider.create())
-            .build();
+            .credentialsProvider(DefaultCredentialsProvider.create()).build();
 
     protected String tableName = "nagl_ShardProgress";
 
@@ -73,14 +75,12 @@ public class LeaseIntegrationTest {
     };
 
     protected DynamoDBLeaseRefresher getLeaseRefresher() {
-        return new DynamoDBLeaseRefresher(
-                tableName,
-                ddbClient,
-                leaseSerializer,
-                true,
-                tableCreatorCallback,
-                LeaseManagementConfig.DEFAULT_REQUEST_TIMEOUT,
-                BillingMode.PAY_PER_REQUEST,
-                false);
+        return new DynamoDBLeaseRefresher(tableName, ddbClient, leaseSerializer, true,
+                tableCreatorCallback, LeaseManagementConfig.DEFAULT_REQUEST_TIMEOUT,
+                new DdbTableConfig().billingMode(BillingMode.PAY_PER_REQUEST),
+                LeaseManagementConfig.DEFAULT_LEASE_TABLE_DELETION_PROTECTION_ENABLED,
+                DefaultSdkAutoConstructList.getInstance());
     }
+
 }
+

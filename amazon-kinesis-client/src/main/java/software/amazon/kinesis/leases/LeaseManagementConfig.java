@@ -518,14 +518,14 @@ public class LeaseManagementConfig {
         /**
          * Percentage of value to achieve critical dampening during this case
          */
-        private int dampeningPercentage = 80;
+        private int dampeningPercentage = 60;
         /**
          * Percentage value used to trigger reBalance. If fleet has workers which are have metrics value more or less
          * than 20% of fleet level average then reBalance is triggered.
          * Leases are taken from workers with metrics value more than fleet level average. The load to take from these
          * workers is determined by evaluating how far they are with respect to fleet level average.
          */
-        private int reBalanceThresholdPercentage = 20;
+        private int reBalanceThresholdPercentage = 10;
 
         /**
          * The allowThroughputOvershoot flag determines whether leases should still be taken even if
@@ -563,7 +563,7 @@ public class LeaseManagementConfig {
          * higher alpha value gives more weightage to recent value and thus low smoothing effect on computed average
          * and selecting smaller alpha values gives more weightage to past value and high smoothing effect.
          */
-        private double workerMetricsEMAAlpha = 0.2;
+        private double workerMetricsEMAAlpha = 0.5;
     }
 
     public static class WorkerMetricsTableConfig extends DdbTableConfig {

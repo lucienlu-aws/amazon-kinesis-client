@@ -14,6 +14,16 @@
  */
 package software.amazon.kinesis.coordinator;
 
+import static org.hamcrest.CoreMatchers.equalTo;
+import static org.junit.Assert.assertThat;
+import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyLong;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CountDownLatch;
@@ -27,34 +37,19 @@ import org.mockito.verification.VerificationMode;
 import software.amazon.kinesis.leases.ShardInfo;
 import software.amazon.kinesis.lifecycle.ShardConsumer;
 
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.junit.Assert.assertThat;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyLong;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-
 @RunWith(MockitoJUnitRunner.class)
 public class GracefulShutdownCoordinatorTest {
 
     @Mock
     private CountDownLatch shutdownCompleteLatch;
-
     @Mock
     private CountDownLatch notificationCompleteLatch;
-
     @Mock
     private CountDownLatch finalShutdownLatch;
-
     @Mock
     private Scheduler scheduler;
-
     @Mock
     private Callable<GracefulShutdownContext> contextCallable;
-
     @Mock
     private ConcurrentMap<ShardInfo, ShardConsumer> shardInfoConsumerMap;
 
@@ -236,11 +231,9 @@ public class GracefulShutdownCoordinatorTest {
         when(notificationCompleteLatch.await(anyLong(), any(TimeUnit.class))).thenReturn(true);
 
         doAnswer(invocation -> {
-                    Thread.currentThread().interrupt();
-                    return true;
-                })
-                .when(scheduler)
-                .shutdown();
+            Thread.currentThread().interrupt();
+            return true;
+        }).when(scheduler).shutdown();
 
         assertThat(requestedShutdownCallable.call(), equalTo(false));
         verifyLatchAwait(notificationCompleteLatch);
@@ -294,8 +287,7 @@ public class GracefulShutdownCoordinatorTest {
 
     @Test(expected = IllegalStateException.class)
     public void testWorkerShutdownCallableThrows() throws Exception {
-        Callable<Boolean> requestedShutdownCallable =
-                new GracefulShutdownCoordinator().createGracefulShutdownCallable(contextCallable);
+        Callable<Boolean> requestedShutdownCallable = new GracefulShutdownCoordinator().createGracefulShutdownCallable(contextCallable);
         when(contextCallable.call()).thenThrow(new IllegalStateException("Bad Shutdown"));
 
         requestedShutdownCallable.call();
@@ -387,4 +379,6 @@ public class GracefulShutdownCoordinatorTest {
         when(shardInfoConsumerMap.size()).thenReturn(initialItemCount, additionalItemCounts);
         when(shardInfoConsumerMap.isEmpty()).thenReturn(initialItemCount == 0, additionalEmptyStates);
     }
+
+
 }

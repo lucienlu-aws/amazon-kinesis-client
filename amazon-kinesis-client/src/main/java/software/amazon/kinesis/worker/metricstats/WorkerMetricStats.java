@@ -87,10 +87,48 @@ public class WorkerMetricStats {
     /**
      * Increase the WorkerMetricStats value by given increaseLoadPercentage. This is done during execution of LAM and
      * as assignments are happening the current metric stat value is increased based on increaseLoadPercentage.
-     * TODO: Fix this to handle a case where metric stat value is absolute zero.
      */
-    public void extrapolateMetricStatValuesForAddedThroughput(final double increaseLoadPercentage) {
-        metricStatsMap.replaceAll((key, value) -> value * (1 + increaseLoadPercentage));
+    public void extrapolateMetricStatValuesForAddedThroughput(
+            final Map<String, Double> workerMetricsToFleetLevelAverageMap,
+            final double averageThroughput,
+            final double increaseThroughput,
+            final double averageLeaseCount) {
+
+        metricStatsMap.replaceAll((key, value) -> extrapolateMetricsValue(key,
+                workerMetricsToFleetLevelAverageMap.get(key),
+                averageThroughput,
+                increaseThroughput, averageLeaseCount));
+    }
+
+    private double extrapolateMetricsValue(final String metricName,
+            final double fleetLevelMetricAverage,
+            final double averageThroughput,
+            final double increaseThroughput, final double averageLeaseCount) {
+
+        if (averageThroughput > 0) {
+            return metricStatsMap.get(metricName) + increaseThroughput * fleetLevelMetricAverage / averageThroughput;
+        } else {
+            return metricStatsMap.get(metricName) + fleetLevelMetricAverage / averageLeaseCount;
+        }
+    }
+
+    public boolean willAnyMetricStatsGoAboveAverageUtilizationOrOperatingRange(
+            final Map<String, Double> workerMetricsToFleetLevelAverageMap,
+            final double averageThroughput,
+            final double increaseThroughput,
+            final double averageLeaseCount) {
+        for (final String metricStatName : metricStats.keySet()) {
+            final double fleetLevelAverageForMetric = workerMetricsToFleetLevelAverageMap.get(metricStatName);
+            final double updatedValueToBe = extrapolateMetricsValue(metricStatName, fleetLevelAverageForMetric,
+                    averageThroughput,
+                    increaseThroughput, averageLeaseCount);
+
+            if (updatedValueToBe > fleetLevelAverageForMetric || updatedValueToBe > operatingRange.get(metricStatName)
+                    .get(0)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

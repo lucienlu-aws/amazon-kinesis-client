@@ -15,9 +15,10 @@
 
 package software.amazon.kinesis.retrieval;
 
+import org.junit.Test;
+
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import org.junit.Test;
 
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.isA;
@@ -99,4 +100,5 @@ public class AWSExceptionManagerTest {
             this.additionalMessage = additionalMessage;
         }
     }
+
 }

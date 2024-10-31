@@ -42,6 +42,8 @@ import java.util.concurrent.TimeUnit;
 @Slf4j
 @ThreadSafe
 public class MigrationStateMachineImpl implements MigrationStateMachine {
+    public static final String FAULT_METRIC = "Fault";
+    public static final String METRICS_OPERATION = "Migration";
 
     private final static long THREAD_POOL_SHUTDOWN_TIMEOUT_SECONDS = 5L;
 
@@ -135,16 +137,11 @@ public class MigrationStateMachineImpl implements MigrationStateMachine {
     @Override
     public synchronized void terminate() {
         if (!terminated && currentMigrationClientVersionState != null) {
-            final MetricsScope scope = MetricsUtil.createMetricsWithOperation(metricsFactory,
-                "MigrationStateMachine");
-
             log.info("State machine is about to terminate");
             currentMigrationClientVersionState.leave();
             currentMigrationClientVersionState = null;
             log.info("State machine reached a terminal state.");
             terminated = true;
-            scope.addData("Terminated", 1, StandardUnit.COUNT, MetricsLevel.SUMMARY);
-            MetricsUtil.endScope(scope);
         }
     }
 
@@ -179,8 +176,6 @@ public class MigrationStateMachineImpl implements MigrationStateMachine {
     private void enter(final MigrationClientVersionState nextMigrationClientVersionState) throws DependencyException {
         boolean success = false;
         while (!success) {
-            final MetricsScope scope = MetricsUtil.createMetricsWithOperation(metricsFactory,
-                "MigrationStateMachine.StateTransition");
             try {
                 // Enter should never fail unless it is the starting state and fails to create the GSI,
                 // in which case it is an unrecoverable error that is bubbled up and KCL start up will fail.
@@ -199,14 +194,16 @@ public class MigrationStateMachineImpl implements MigrationStateMachine {
                 log.info("Transitioning from {} to {} failed, retrying after a minute",
                     currentMigrationClientVersionState.clientVersion(), nextMigrationClientVersionState.clientVersion(),
                     e);
+
+                final MetricsScope scope = MetricsUtil.createMetricsWithOperation(metricsFactory, METRICS_OPERATION);
+                scope.addData(FAULT_METRIC, 1, StandardUnit.COUNT, MetricsLevel.SUMMARY);
+                MetricsUtil.endScope(scope);
+
                 try {
                     Thread.sleep(1000);
                 } catch (final InterruptedException ie) {
                     log.info("Interrupted while sleeping before retrying state machine transition", ie);
                 }
-            } finally {
-                MetricsUtil.addSuccess(scope, null, success, MetricsLevel.SUMMARY);
-                MetricsUtil.endScope(scope);
             }
         }
     }

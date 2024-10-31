@@ -27,7 +27,7 @@ import software.amazon.kinesis.retrieval.kpl.ExtendedSequenceNumber;
 
 /**
  * Mock LeaseRefresher by randomly throwing Leasing Exceptions.
- *
+ * 
  */
 @RequiredArgsConstructor
 @Slf4j
@@ -56,6 +56,7 @@ public class ExceptionThrowingLeaseRefresher implements LeaseRefresher {
         DELETEALL(10),
         UPDATELEASE(11),
         LISTLEASESFORSTREAM(12),
+        IS_LEASE_OWNER_TO_LEASE_KEY_INDEX_ACTIVE(13),
         NONE(Integer.MIN_VALUE);
 
         private Integer index;
@@ -70,13 +71,12 @@ public class ExceptionThrowingLeaseRefresher implements LeaseRefresher {
     }
 
     // Define which method should throw exception and when it should throw exception.
-    private ExceptionThrowingLeaseRefresherMethods methodThrowingException =
-            ExceptionThrowingLeaseRefresherMethods.NONE;
+    private ExceptionThrowingLeaseRefresherMethods methodThrowingException = ExceptionThrowingLeaseRefresherMethods.NONE;
     private int timeThrowingException = Integer.MAX_VALUE;
 
     /**
      * Set parameters used for throwing exception.
-     *
+     * 
      * @param method which would throw exception
      * @param throwingTime defines what time to throw exception
      */
@@ -98,7 +98,7 @@ public class ExceptionThrowingLeaseRefresher implements LeaseRefresher {
     // 1). method equals to methodThrowingException
     // 2). method calling count equals to what we want
     private void throwExceptions(String methodName, ExceptionThrowingLeaseRefresherMethods method)
-            throws DependencyException {
+        throws DependencyException {
         // Increase calling count for this method
         leaseRefresherMethodCallingCount[method.index()]++;
         if (method.equals(methodThrowingException)
@@ -112,16 +112,17 @@ public class ExceptionThrowingLeaseRefresher implements LeaseRefresher {
     @Override
     public boolean createLeaseTableIfNotExists(Long readCapacity, Long writeCapacity)
             throws ProvisionedThroughputException, DependencyException {
-        throwExceptions(
-                "createLeaseTableIfNotExists", ExceptionThrowingLeaseRefresherMethods.CREATELEASETABLEIFNOTEXISTS);
+        throwExceptions("createLeaseTableIfNotExists",
+                ExceptionThrowingLeaseRefresherMethods.CREATELEASETABLEIFNOTEXISTS);
 
         return leaseRefresher.createLeaseTableIfNotExists(readCapacity, writeCapacity);
     }
 
     @Override
-    public boolean createLeaseTableIfNotExists() throws ProvisionedThroughputException, DependencyException {
-        throwExceptions(
-                "createLeaseTableIfNotExists", ExceptionThrowingLeaseRefresherMethods.CREATELEASETABLEIFNOTEXISTS);
+    public boolean createLeaseTableIfNotExists()
+        throws ProvisionedThroughputException, DependencyException {
+        throwExceptions("createLeaseTableIfNotExists",
+                ExceptionThrowingLeaseRefresherMethods.CREATELEASETABLEIFNOTEXISTS);
 
         return leaseRefresher.createLeaseTableIfNotExists();
     }
@@ -149,7 +150,8 @@ public class ExceptionThrowingLeaseRefresher implements LeaseRefresher {
     }
 
     @Override
-    public List<Lease> listLeases() throws DependencyException, InvalidStateException, ProvisionedThroughputException {
+    public List<Lease> listLeases()
+        throws DependencyException, InvalidStateException, ProvisionedThroughputException {
         throwExceptions("listLeases", ExceptionThrowingLeaseRefresherMethods.LISTLEASES);
 
         return leaseRefresher.listLeases();
@@ -157,7 +159,7 @@ public class ExceptionThrowingLeaseRefresher implements LeaseRefresher {
 
     @Override
     public boolean createLeaseIfNotExists(Lease lease)
-            throws DependencyException, InvalidStateException, ProvisionedThroughputException {
+        throws DependencyException, InvalidStateException, ProvisionedThroughputException {
         throwExceptions("createLeaseIfNotExists", ExceptionThrowingLeaseRefresherMethods.CREATELEASEIFNOTEXISTS);
 
         return leaseRefresher.createLeaseIfNotExists(lease);
@@ -165,7 +167,7 @@ public class ExceptionThrowingLeaseRefresher implements LeaseRefresher {
 
     @Override
     public boolean renewLease(Lease lease)
-            throws DependencyException, InvalidStateException, ProvisionedThroughputException {
+        throws DependencyException, InvalidStateException, ProvisionedThroughputException {
         throwExceptions("renewLease", ExceptionThrowingLeaseRefresherMethods.RENEWLEASE);
 
         return leaseRefresher.renewLease(lease);
@@ -173,7 +175,7 @@ public class ExceptionThrowingLeaseRefresher implements LeaseRefresher {
 
     @Override
     public boolean takeLease(Lease lease, String owner)
-            throws DependencyException, InvalidStateException, ProvisionedThroughputException {
+        throws DependencyException, InvalidStateException, ProvisionedThroughputException {
         throwExceptions("takeLease", ExceptionThrowingLeaseRefresherMethods.TAKELEASE);
 
         return leaseRefresher.takeLease(lease, owner);
@@ -181,7 +183,7 @@ public class ExceptionThrowingLeaseRefresher implements LeaseRefresher {
 
     @Override
     public boolean evictLease(Lease lease)
-            throws DependencyException, InvalidStateException, ProvisionedThroughputException {
+        throws DependencyException, InvalidStateException, ProvisionedThroughputException {
         throwExceptions("evictLease", ExceptionThrowingLeaseRefresherMethods.EVICTLEASE);
 
         return leaseRefresher.evictLease(lease);
@@ -189,7 +191,7 @@ public class ExceptionThrowingLeaseRefresher implements LeaseRefresher {
 
     @Override
     public void deleteLease(Lease lease)
-            throws DependencyException, InvalidStateException, ProvisionedThroughputException {
+        throws DependencyException, InvalidStateException, ProvisionedThroughputException {
         throwExceptions("deleteLease", ExceptionThrowingLeaseRefresherMethods.DELETELEASE);
 
         leaseRefresher.deleteLease(lease);
@@ -197,7 +199,7 @@ public class ExceptionThrowingLeaseRefresher implements LeaseRefresher {
 
     @Override
     public boolean updateLease(Lease lease)
-            throws DependencyException, InvalidStateException, ProvisionedThroughputException {
+        throws DependencyException, InvalidStateException, ProvisionedThroughputException {
         throwExceptions("updateLease", ExceptionThrowingLeaseRefresherMethods.UPDATELEASE);
 
         return leaseRefresher.updateLease(lease);
@@ -205,7 +207,7 @@ public class ExceptionThrowingLeaseRefresher implements LeaseRefresher {
 
     @Override
     public Lease getLease(String leaseKey)
-            throws DependencyException, InvalidStateException, ProvisionedThroughputException {
+        throws DependencyException, InvalidStateException, ProvisionedThroughputException {
         throwExceptions("getLease", ExceptionThrowingLeaseRefresherMethods.GETLEASE);
 
         return leaseRefresher.getLease(leaseKey);
@@ -219,8 +221,8 @@ public class ExceptionThrowingLeaseRefresher implements LeaseRefresher {
     }
 
     @Override
-    public boolean isLeaseTableEmpty()
-            throws DependencyException, InvalidStateException, ProvisionedThroughputException {
+    public boolean isLeaseTableEmpty() throws DependencyException,
+        InvalidStateException, ProvisionedThroughputException {
         return false;
     }
 
@@ -228,5 +230,12 @@ public class ExceptionThrowingLeaseRefresher implements LeaseRefresher {
     public ExtendedSequenceNumber getCheckpoint(final String leaseKey)
             throws ProvisionedThroughputException, InvalidStateException, DependencyException {
         return null;
+    }
+
+    @Override
+    public boolean isLeaseOwnerToLeaseKeyIndexActive() throws DependencyException {
+        throwExceptions("isLeaseOwnerToLeaseKeyIndexActive",
+            ExceptionThrowingLeaseRefresherMethods.IS_LEASE_OWNER_TO_LEASE_KEY_INDEX_ACTIVE);
+        return false;
     }
 }

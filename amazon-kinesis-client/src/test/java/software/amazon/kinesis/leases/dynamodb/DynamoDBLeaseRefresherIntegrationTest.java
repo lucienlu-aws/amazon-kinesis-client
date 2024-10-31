@@ -19,19 +19,21 @@ import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
-
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.runners.MockitoJUnitRunner;
+
+import software.amazon.awssdk.core.util.DefaultSdkAutoConstructList;
 import software.amazon.awssdk.services.kinesis.model.HashKeyRange;
+import software.amazon.kinesis.common.DdbTableConfig;
 import software.amazon.kinesis.common.HashKeyRangeForLease;
 import software.amazon.kinesis.leases.Lease;
 import software.amazon.kinesis.leases.LeaseIntegrationTest;
+import software.amazon.kinesis.leases.LeaseManagementConfig;
 import software.amazon.kinesis.leases.UpdateField;
 import software.amazon.kinesis.leases.exceptions.LeasingException;
-
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -46,12 +48,8 @@ public class DynamoDBLeaseRefresherIntegrationTest extends LeaseIntegrationTest 
 
     @Before
     public void setup() {
-        doNothing()
-                .when(tableCreatorCallback)
-                .performAction(eq(TableCreatorCallbackInput.builder()
-                        .dynamoDbClient(ddbClient)
-                        .tableName(tableName)
-                        .build()));
+        doNothing().when(tableCreatorCallback).performAction(
+                eq(TableCreatorCallbackInput.builder().dynamoDbClient(ddbClient).tableName(tableName).build()));
     }
 
     /**
@@ -131,8 +129,10 @@ public class DynamoDBLeaseRefresherIntegrationTest extends LeaseIntegrationTest 
         TestHarnessBuilder builder = new TestHarnessBuilder(leaseRefresher);
         Lease lease = builder.withLease("1").build().get("1");
         final String leaseKey = lease.leaseKey();
-        final HashKeyRangeForLease hashKeyRangeForLease = HashKeyRangeForLease.fromHashKeyRange(
-                HashKeyRange.builder().startingHashKey("1").endingHashKey("2").build());
+        final HashKeyRangeForLease hashKeyRangeForLease = HashKeyRangeForLease.fromHashKeyRange(HashKeyRange.builder()
+                .startingHashKey("1")
+                .endingHashKey("2")
+                .build());
         lease.hashKeyRange(hashKeyRangeForLease);
         leaseRefresher.updateLeaseWithMetaInfo(lease, UpdateField.HASH_KEY_RANGE);
         final Lease updatedLease = leaseRefresher.getLease(leaseKey);
@@ -190,8 +190,7 @@ public class DynamoDBLeaseRefresherIntegrationTest extends LeaseIntegrationTest 
 
     private void testTakeLease(boolean owned) throws LeasingException {
         TestHarnessBuilder builder = new TestHarnessBuilder(leaseRefresher);
-        Lease lease =
-                builder.withLease("1", owned ? "originalOwner" : null).build().get("1");
+        Lease lease = builder.withLease("1", owned ? "originalOwner" : null).build().get("1");
         Long originalLeaseCounter = lease.leaseCounter();
 
         String newOwner = "newOwner";
@@ -305,12 +304,11 @@ public class DynamoDBLeaseRefresherIntegrationTest extends LeaseIntegrationTest 
     @Test
     public void testWaitUntilLeaseTableExists() throws LeasingException {
         final UUID uniqueId = UUID.randomUUID();
-        DynamoDBLeaseRefresher refresher = new DynamoDBLeaseRefresher(
-                "tableEventuallyExists_" + uniqueId,
-                ddbClient,
-                new DynamoDBLeaseSerializer(),
-                true,
-                tableCreatorCallback);
+        DynamoDBLeaseRefresher refresher = new DynamoDBLeaseRefresher("tableEventuallyExists_" + uniqueId, ddbClient,
+                new DynamoDBLeaseSerializer(), true, tableCreatorCallback,
+                LeaseManagementConfig.DEFAULT_REQUEST_TIMEOUT, new DdbTableConfig(),
+                LeaseManagementConfig.DEFAULT_LEASE_TABLE_DELETION_PROTECTION_ENABLED,
+                DefaultSdkAutoConstructList.getInstance());
 
         refresher.createLeaseTableIfNotExists();
         assertTrue(refresher.waitUntilLeaseTableExists(1, 20));
@@ -322,16 +320,19 @@ public class DynamoDBLeaseRefresherIntegrationTest extends LeaseIntegrationTest 
          * Just using AtomicInteger for the indirection it provides.
          */
         final AtomicInteger sleepCounter = new AtomicInteger(0);
-        DynamoDBLeaseRefresher refresher =
-                new DynamoDBLeaseRefresher(
-                        "nonexistentTable", ddbClient, new DynamoDBLeaseSerializer(), true, tableCreatorCallback) {
-                    @Override
-                    long sleep(long timeToSleepMillis) {
-                        assertEquals(1000L, timeToSleepMillis);
-                        sleepCounter.incrementAndGet();
-                        return 1000L;
-                    }
-                };
+        DynamoDBLeaseRefresher refresher = new DynamoDBLeaseRefresher("nonexistentTable", ddbClient,
+                new DynamoDBLeaseSerializer(), true, tableCreatorCallback,
+                LeaseManagementConfig.DEFAULT_REQUEST_TIMEOUT, new DdbTableConfig(),
+                LeaseManagementConfig.DEFAULT_LEASE_TABLE_DELETION_PROTECTION_ENABLED,
+                DefaultSdkAutoConstructList.getInstance()) {
+            @Override
+            long sleep(long timeToSleepMillis) {
+                assertEquals(1000L, timeToSleepMillis);
+                sleepCounter.incrementAndGet();
+                return 1000L;
+            }
+
+        };
 
         assertFalse(refresher.waitUntilLeaseTableExists(2, 1));
         assertEquals(1, sleepCounter.get());
@@ -339,15 +340,15 @@ public class DynamoDBLeaseRefresherIntegrationTest extends LeaseIntegrationTest 
 
     @Test
     public void testTableCreatorCallback() throws Exception {
-        DynamoDBLeaseRefresher refresher = new DynamoDBLeaseRefresher(
-                tableName, ddbClient, new DynamoDBLeaseSerializer(), true, tableCreatorCallback);
+        DynamoDBLeaseRefresher refresher = new DynamoDBLeaseRefresher(tableName, ddbClient,
+                new DynamoDBLeaseSerializer(), true, tableCreatorCallback,
+                LeaseManagementConfig.DEFAULT_REQUEST_TIMEOUT, new DdbTableConfig(),
+                LeaseManagementConfig.DEFAULT_LEASE_TABLE_DELETION_PROTECTION_ENABLED,
+                DefaultSdkAutoConstructList.getInstance());
 
         refresher.performPostTableCreationAction();
 
-        verify(tableCreatorCallback)
-                .performAction(eq(TableCreatorCallbackInput.builder()
-                        .dynamoDbClient(ddbClient)
-                        .tableName(tableName)
-                        .build()));
+        verify(tableCreatorCallback).performAction(
+                eq(TableCreatorCallbackInput.builder().dynamoDbClient(ddbClient).tableName(tableName).build()));
     }
 }

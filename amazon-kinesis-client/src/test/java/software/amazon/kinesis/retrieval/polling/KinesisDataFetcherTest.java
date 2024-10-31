@@ -14,6 +14,21 @@
  */
 package software.amazon.kinesis.retrieval.polling;
 
+import static org.hamcrest.CoreMatchers.isA;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyLong;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.reset;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -35,6 +50,7 @@ import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.runners.MockitoJUnitRunner;
+
 import software.amazon.awssdk.core.exception.SdkException;
 import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
 import software.amazon.awssdk.services.kinesis.model.ChildShard;
@@ -57,22 +73,6 @@ import software.amazon.kinesis.processor.Checkpointer;
 import software.amazon.kinesis.retrieval.DataFetcherResult;
 import software.amazon.kinesis.retrieval.GetRecordsRetrievalStrategy;
 import software.amazon.kinesis.retrieval.RetryableRetrievalException;
-import software.amazon.kinesis.retrieval.kpl.ExtendedSequenceNumber;
-
-import static org.hamcrest.CoreMatchers.isA;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyLong;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.reset;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 /**
  * Unit tests for KinesisDataFetcher.
@@ -82,22 +82,20 @@ public class KinesisDataFetcherTest {
     private static final int MAX_RECORDS = 1;
     private static final String STREAM_NAME = "streamName";
     private static final String SHARD_ID = "shardId-1";
-    private static final InitialPositionInStreamExtended INITIAL_POSITION_LATEST =
-            InitialPositionInStreamExtended.newInitialPosition(InitialPositionInStream.LATEST);
-    private static final InitialPositionInStreamExtended INITIAL_POSITION_TRIM_HORIZON =
-            InitialPositionInStreamExtended.newInitialPosition(InitialPositionInStream.TRIM_HORIZON);
-    private static final InitialPositionInStreamExtended INITIAL_POSITION_AT_TIMESTAMP =
-            InitialPositionInStreamExtended.newInitialPositionAtTimestamp(new Date(1000));
+    private static final InitialPositionInStreamExtended INITIAL_POSITION_LATEST = InitialPositionInStreamExtended
+            .newInitialPosition(InitialPositionInStream.LATEST);
+    private static final InitialPositionInStreamExtended INITIAL_POSITION_TRIM_HORIZON = InitialPositionInStreamExtended
+            .newInitialPosition(InitialPositionInStream.TRIM_HORIZON);
+    private static final InitialPositionInStreamExtended INITIAL_POSITION_AT_TIMESTAMP = InitialPositionInStreamExtended
+            .newInitialPositionAtTimestamp(new Date(1000));
     private static final MetricsFactory NULL_METRICS_FACTORY = new NullMetricsFactory();
 
     private KinesisDataFetcher kinesisDataFetcher;
 
     @Mock
     private KinesisAsyncClient kinesisClient;
-
     @Mock
     private CompletableFuture<GetRecordsResponse> getRecordsResponseFuture;
-
     @Mock
     private CompletableFuture<GetShardIteratorResponse> getShardIteratorResponseFuture;
 
@@ -106,8 +104,8 @@ public class KinesisDataFetcherTest {
 
     @Before
     public void setup() {
-        kinesisDataFetcher =
-                new KinesisDataFetcher(kinesisClient, STREAM_NAME, SHARD_ID, MAX_RECORDS, NULL_METRICS_FACTORY);
+        kinesisDataFetcher = new KinesisDataFetcher(kinesisClient, STREAM_NAME, SHARD_ID, MAX_RECORDS,
+                NULL_METRICS_FACTORY);
     }
 
     /**
@@ -115,8 +113,8 @@ public class KinesisDataFetcherTest {
      */
     @Test
     public final void testInitializeLatest() throws Exception {
-        testInitializeAndFetch(
-                ShardIteratorType.LATEST.toString(), ShardIteratorType.LATEST.toString(), INITIAL_POSITION_LATEST);
+        testInitializeAndFetch(ShardIteratorType.LATEST.toString(), ShardIteratorType.LATEST.toString(),
+                INITIAL_POSITION_LATEST);
     }
 
     /**
@@ -124,9 +122,7 @@ public class KinesisDataFetcherTest {
      */
     @Test
     public final void testInitializeTimeZero() throws Exception {
-        testInitializeAndFetch(
-                ShardIteratorType.TRIM_HORIZON.toString(),
-                ShardIteratorType.TRIM_HORIZON.toString(),
+        testInitializeAndFetch(ShardIteratorType.TRIM_HORIZON.toString(), ShardIteratorType.TRIM_HORIZON.toString(),
                 INITIAL_POSITION_TRIM_HORIZON);
     }
 
@@ -135,9 +131,7 @@ public class KinesisDataFetcherTest {
      */
     @Test
     public final void testInitializeAtTimestamp() throws Exception {
-        testInitializeAndFetch(
-                ShardIteratorType.AT_TIMESTAMP.toString(),
-                ShardIteratorType.AT_TIMESTAMP.toString(),
+        testInitializeAndFetch(ShardIteratorType.AT_TIMESTAMP.toString(), ShardIteratorType.AT_TIMESTAMP.toString(),
                 INITIAL_POSITION_AT_TIMESTAMP);
     }
 
@@ -159,8 +153,8 @@ public class KinesisDataFetcherTest {
     }
 
     private CompletableFuture<GetShardIteratorResponse> makeGetShardIteratorResponse(String shardIterator) {
-        return CompletableFuture.completedFuture(
-                GetShardIteratorResponse.builder().shardIterator(shardIterator).build());
+        return CompletableFuture
+                .completedFuture(GetShardIteratorResponse.builder().shardIterator(shardIterator).build());
     }
 
     @Test
@@ -171,14 +165,13 @@ public class KinesisDataFetcherTest {
         final String seqA = "123";
         final String seqB = "456";
 
-        ArgumentCaptor<GetShardIteratorRequest> shardIteratorRequestCaptor =
-                ArgumentCaptor.forClass(GetShardIteratorRequest.class);
+        ArgumentCaptor<GetShardIteratorRequest> shardIteratorRequestCaptor = ArgumentCaptor
+                .forClass(GetShardIteratorRequest.class);
 
         when(kinesisClient.getShardIterator(shardIteratorRequestCaptor.capture()))
                 .thenReturn(makeGetShardIteratorResponse(iteratorA))
                 .thenReturn(makeGetShardIteratorResponse(iteratorA))
                 .thenReturn(makeGetShardIteratorResponse(iteratorB));
-        when(checkpoint.getCheckpoint(SHARD_ID)).thenReturn(new ExtendedSequenceNumber(seqA));
 
         kinesisDataFetcher.initialize(seqA, null);
         kinesisDataFetcher.advanceIteratorTo(seqA, null);
@@ -202,30 +195,24 @@ public class KinesisDataFetcherTest {
     }
 
     private GetShardIteratorRequest makeGetShardIteratorRequest(String shardIteratorType) {
-        return GetShardIteratorRequest.builder()
-                .shardIteratorType(shardIteratorType)
-                .streamName(STREAM_NAME)
-                .shardId(SHARD_ID)
-                .build();
+        return GetShardIteratorRequest.builder().shardIteratorType(shardIteratorType).streamName(STREAM_NAME)
+                .shardId(SHARD_ID).build();
     }
 
     @Test
-    public void testAdvanceIteratorToTrimHorizonLatestAndAtTimestamp() {
-        final ArgumentCaptor<GetShardIteratorRequest> requestCaptor =
-                ArgumentCaptor.forClass(GetShardIteratorRequest.class);
+    public void testAdvanceIteratorToTrimHorizonLatestAndAtTimestamp(){
+        final ArgumentCaptor<GetShardIteratorRequest> requestCaptor = ArgumentCaptor
+                .forClass(GetShardIteratorRequest.class);
         final String iteratorHorizon = "TRIM_HORIZON";
         final String iteratorLatest = "LATEST";
         final String iteratorAtTimestamp = "AT_TIMESTAMP";
-        final Map<ShardIteratorType, GetShardIteratorRequest> requestsMap = Arrays.stream(
-                        new String[] {iteratorHorizon, iteratorLatest, iteratorAtTimestamp})
+        final Map<ShardIteratorType, GetShardIteratorRequest> requestsMap = Arrays
+                .stream(new String[] { iteratorHorizon, iteratorLatest, iteratorAtTimestamp })
                 .map(this::makeGetShardIteratorRequest)
                 .collect(Collectors.toMap(r -> ShardIteratorType.valueOf(r.shardIteratorTypeAsString()), r -> r));
         GetShardIteratorRequest tsReq = requestsMap.get(ShardIteratorType.AT_TIMESTAMP);
-        requestsMap.put(
-                ShardIteratorType.AT_TIMESTAMP,
-                tsReq.toBuilder()
-                        .timestamp(INITIAL_POSITION_AT_TIMESTAMP.getTimestamp().toInstant())
-                        .build());
+        requestsMap.put(ShardIteratorType.AT_TIMESTAMP,
+                tsReq.toBuilder().timestamp(INITIAL_POSITION_AT_TIMESTAMP.getTimestamp().toInstant()).build());
 
         when(kinesisClient.getShardIterator(requestCaptor.capture()))
                 .thenReturn(makeGetShardIteratorResponse(iteratorHorizon))
@@ -252,22 +239,19 @@ public class KinesisDataFetcherTest {
     }
 
     private GetRecordsRequest makeGetRecordsRequest(String shardIterator) {
-        return GetRecordsRequest.builder()
-                .shardIterator(shardIterator)
-                .limit(MAX_RECORDS)
-                .build();
+        return GetRecordsRequest.builder().shardIterator(shardIterator).limit(MAX_RECORDS).build();
     }
 
     @Test
     public void testGetRecordsWithResourceNotFoundException() throws Exception {
-        final ArgumentCaptor<GetShardIteratorRequest> iteratorCaptor =
-                ArgumentCaptor.forClass(GetShardIteratorRequest.class);
+        final ArgumentCaptor<GetShardIteratorRequest> iteratorCaptor = ArgumentCaptor
+                .forClass(GetShardIteratorRequest.class);
         final ArgumentCaptor<GetRecordsRequest> recordsCaptor = ArgumentCaptor.forClass(GetRecordsRequest.class);
         // Set up arguments used by proxy
         final String nextIterator = "TestShardIterator";
 
-        final GetShardIteratorRequest expectedIteratorRequest =
-                makeGetShardIteratorRequest(ShardIteratorType.LATEST.name());
+        final GetShardIteratorRequest expectedIteratorRequest = makeGetShardIteratorRequest(
+                ShardIteratorType.LATEST.name());
         final GetRecordsRequest expectedRecordsRequest = makeGetRecordsRequest(nextIterator);
 
         final CompletableFuture<GetRecordsResponse> future = mock(CompletableFuture.class);
@@ -276,27 +260,21 @@ public class KinesisDataFetcherTest {
         when(kinesisClient.getShardIterator(iteratorCaptor.capture()))
                 .thenReturn(makeGetShardIteratorResponse(nextIterator));
         when(kinesisClient.getRecords(recordsCaptor.capture())).thenReturn(future);
-        when(future.get(anyLong(), any(TimeUnit.class)))
-                .thenThrow(new ExecutionException(ResourceNotFoundException.builder()
-                        .message("Test Exception")
-                        .build()));
+        when(future.get(anyLong(), any(TimeUnit.class))).thenThrow(
+                new ExecutionException(ResourceNotFoundException.builder().message("Test Exception").build()));
 
         // Create data fectcher and initialize it with latest type checkpoint
         kinesisDataFetcher.initialize(SentinelCheckpoint.LATEST.toString(), INITIAL_POSITION_LATEST);
-        final GetRecordsRetrievalStrategy getRecordsRetrievalStrategy =
-                new SynchronousGetRecordsRetrievalStrategy(kinesisDataFetcher);
+        final GetRecordsRetrievalStrategy getRecordsRetrievalStrategy = new SynchronousGetRecordsRetrievalStrategy(
+                kinesisDataFetcher);
         try {
             // Call records of dataFetcher which will throw an exception
             getRecordsRetrievalStrategy.getRecords(MAX_RECORDS);
         } finally {
             // Test shard has reached the end
             assertTrue("Shard should reach the end", kinesisDataFetcher.isShardEndReached());
-            assertEquals(
-                    expectedIteratorRequest.startingSequenceNumber(),
-                    iteratorCaptor.getValue().startingSequenceNumber());
-            assertEquals(
-                    expectedRecordsRequest.shardIterator(),
-                    recordsCaptor.getValue().shardIterator());
+            assertEquals(expectedIteratorRequest.startingSequenceNumber(), iteratorCaptor.getValue().startingSequenceNumber());
+            assertEquals(expectedRecordsRequest.shardIterator(), recordsCaptor.getValue().shardIterator());
         }
     }
 
@@ -305,20 +283,19 @@ public class KinesisDataFetcherTest {
         expectedExceptionRule.expect(SdkException.class);
         expectedExceptionRule.expectMessage("Test Exception");
 
-        CompletableFuture<GetShardIteratorResponse> getShardIteratorFuture = CompletableFuture.completedFuture(
-                GetShardIteratorResponse.builder().shardIterator("test").build());
+        CompletableFuture<GetShardIteratorResponse> getShardIteratorFuture = CompletableFuture
+                .completedFuture(GetShardIteratorResponse.builder().shardIterator("test").build());
 
         // Set up proxy mock methods
         when(kinesisClient.getShardIterator(any(GetShardIteratorRequest.class))).thenReturn(getShardIteratorFuture);
         when(kinesisClient.getRecords(any(GetRecordsRequest.class))).thenReturn(getRecordsResponseFuture);
         when(getRecordsResponseFuture.get(anyLong(), any(TimeUnit.class)))
-                .thenThrow(new ExecutionException(
-                        SdkException.builder().message("Test Exception").build()));
+                .thenThrow(new ExecutionException(SdkException.builder().message("Test Exception").build()));
 
         // Create data fectcher and initialize it with latest type checkpoint
         kinesisDataFetcher.initialize(SentinelCheckpoint.LATEST.toString(), INITIAL_POSITION_LATEST);
-        final GetRecordsRetrievalStrategy getRecordsRetrievalStrategy =
-                new SynchronousGetRecordsRetrievalStrategy(kinesisDataFetcher);
+        final GetRecordsRetrievalStrategy getRecordsRetrievalStrategy = new SynchronousGetRecordsRetrievalStrategy(
+                kinesisDataFetcher);
 
         // Call records of dataFetcher which will throw an exception
         getRecordsRetrievalStrategy.getRecords(MAX_RECORDS);
@@ -327,11 +304,11 @@ public class KinesisDataFetcherTest {
     @Test
     public void testNonNullGetRecords() throws Exception {
         final String nextIterator = "TestIterator";
-        final ArgumentCaptor<GetShardIteratorRequest> iteratorCaptor =
-                ArgumentCaptor.forClass(GetShardIteratorRequest.class);
+        final ArgumentCaptor<GetShardIteratorRequest> iteratorCaptor = ArgumentCaptor
+                .forClass(GetShardIteratorRequest.class);
         final ArgumentCaptor<GetRecordsRequest> recordsCaptor = ArgumentCaptor.forClass(GetRecordsRequest.class);
-        final GetShardIteratorRequest expectedIteratorRequest =
-                makeGetShardIteratorRequest(ShardIteratorType.LATEST.name());
+        final GetShardIteratorRequest expectedIteratorRequest = makeGetShardIteratorRequest(
+                ShardIteratorType.LATEST.name());
         final GetRecordsRequest expectedRecordsRequest = makeGetRecordsRequest(nextIterator);
 
         final CompletableFuture<GetRecordsResponse> future = mock(CompletableFuture.class);
@@ -339,20 +316,15 @@ public class KinesisDataFetcherTest {
         when(kinesisClient.getShardIterator(iteratorCaptor.capture()))
                 .thenReturn(makeGetShardIteratorResponse(nextIterator));
         when(kinesisClient.getRecords(recordsCaptor.capture())).thenReturn(future);
-        when(future.get(anyLong(), any(TimeUnit.class)))
-                .thenThrow(new ExecutionException(ResourceNotFoundException.builder()
-                        .message("Test Exception")
-                        .build()));
+        when(future.get(anyLong(), any(TimeUnit.class))).thenThrow(
+                new ExecutionException(ResourceNotFoundException.builder().message("Test Exception").build()));
 
         kinesisDataFetcher.initialize(SentinelCheckpoint.LATEST.toString(), INITIAL_POSITION_LATEST);
         DataFetcherResult dataFetcherResult = kinesisDataFetcher.getRecords();
 
         assertNotNull(dataFetcherResult);
-        assertEquals(
-                expectedIteratorRequest.startingSequenceNumber(),
-                iteratorCaptor.getValue().startingSequenceNumber());
-        assertEquals(
-                expectedRecordsRequest.shardIterator(), recordsCaptor.getValue().shardIterator());
+        assertEquals(expectedIteratorRequest.startingSequenceNumber(), iteratorCaptor.getValue().startingSequenceNumber());
+        assertEquals(expectedRecordsRequest.shardIterator(), recordsCaptor.getValue().shardIterator());
     }
 
     private CompletableFuture<GetRecordsResponse> makeGetRecordsResponse(String nextIterator, List<Record> records) {
@@ -360,11 +332,8 @@ public class KinesisDataFetcherTest {
         if (nextIterator == null) {
             childShards = createChildShards();
         }
-        return CompletableFuture.completedFuture(GetRecordsResponse.builder()
-                .nextShardIterator(nextIterator)
-                .records(CollectionUtils.isNullOrEmpty(records) ? Collections.emptyList() : records)
-                .childShards(childShards)
-                .build());
+        return CompletableFuture.completedFuture(GetRecordsResponse.builder().nextShardIterator(nextIterator)
+                .records(CollectionUtils.isNullOrEmpty(records) ? Collections.emptyList() : records).childShards(childShards).build());
     }
 
     private List<ChildShard> createChildShards() {
@@ -372,15 +341,15 @@ public class KinesisDataFetcherTest {
         List<String> parentShards = new ArrayList<>();
         parentShards.add(SHARD_ID);
         ChildShard leftChild = ChildShard.builder()
-                .shardId("Shard-2")
-                .parentShards(parentShards)
-                .hashKeyRange(ShardObjectHelper.newHashKeyRange("0", "49"))
-                .build();
+                                         .shardId("Shard-2")
+                                         .parentShards(parentShards)
+                                         .hashKeyRange(ShardObjectHelper.newHashKeyRange("0", "49"))
+                                         .build();
         ChildShard rightChild = ChildShard.builder()
-                .shardId("Shard-3")
-                .parentShards(parentShards)
-                .hashKeyRange(ShardObjectHelper.newHashKeyRange("50", "99"))
-                .build();
+                                          .shardId("Shard-3")
+                                          .parentShards(parentShards)
+                                          .hashKeyRange(ShardObjectHelper.newHashKeyRange("50", "99"))
+                                          .build();
         childShards.add(leftChild);
         childShards.add(rightChild);
         return childShards;
@@ -388,33 +357,26 @@ public class KinesisDataFetcherTest {
 
     @Test
     public void testFetcherDoesNotAdvanceWithoutAccept() throws InterruptedException, ExecutionException {
-        final ArgumentCaptor<GetShardIteratorRequest> iteratorCaptor =
-                ArgumentCaptor.forClass(GetShardIteratorRequest.class);
+        final ArgumentCaptor<GetShardIteratorRequest> iteratorCaptor = ArgumentCaptor
+                .forClass(GetShardIteratorRequest.class);
         final ArgumentCaptor<GetRecordsRequest> recordsCaptor = ArgumentCaptor.forClass(GetRecordsRequest.class);
         final String initialIterator = "InitialIterator";
         final String nextIterator1 = "NextIteratorOne";
         final String nextIterator2 = "NextIteratorTwo";
         final CompletableFuture<GetRecordsResponse> nonAdvancingResult1 = makeGetRecordsResponse(initialIterator, null);
         final CompletableFuture<GetRecordsResponse> nonAdvancingResult2 = makeGetRecordsResponse(nextIterator1, null);
-        final CompletableFuture<GetRecordsResponse> finalNonAdvancingResult =
-                makeGetRecordsResponse(nextIterator2, null);
+        final CompletableFuture<GetRecordsResponse> finalNonAdvancingResult = makeGetRecordsResponse(nextIterator2,
+                null);
         final CompletableFuture<GetRecordsResponse> advancingResult1 = makeGetRecordsResponse(nextIterator1, null);
         final CompletableFuture<GetRecordsResponse> advancingResult2 = makeGetRecordsResponse(nextIterator2, null);
         final CompletableFuture<GetRecordsResponse> finalAdvancingResult = makeGetRecordsResponse(null, null);
 
         when(kinesisClient.getShardIterator(iteratorCaptor.capture()))
                 .thenReturn(makeGetShardIteratorResponse(initialIterator));
-        when(kinesisClient.getRecords(recordsCaptor.capture()))
-                .thenReturn(
-                        nonAdvancingResult1,
-                        advancingResult1,
-                        nonAdvancingResult2,
-                        advancingResult2,
-                        finalNonAdvancingResult,
-                        finalAdvancingResult);
+        when(kinesisClient.getRecords(recordsCaptor.capture())).thenReturn(nonAdvancingResult1, advancingResult1,
+                nonAdvancingResult2, advancingResult2, finalNonAdvancingResult, finalAdvancingResult);
 
-        kinesisDataFetcher.initialize(
-                "TRIM_HORIZON",
+        kinesisDataFetcher.initialize("TRIM_HORIZON",
                 InitialPositionInStreamExtended.newInitialPosition(InitialPositionInStream.TRIM_HORIZON));
 
         assertNoAdvance(nonAdvancingResult1.get(), initialIterator);
@@ -448,8 +410,8 @@ public class KinesisDataFetcherTest {
     @Ignore
     public void testRestartIterator() throws Exception {
         GetRecordsResponse getRecordsResult = mock(GetRecordsResponse.class);
-        GetRecordsResponse restartGetRecordsResponse =
-                makeGetRecordsResponse(null, null).get(anyLong(), any(TimeUnit.class));
+        GetRecordsResponse restartGetRecordsResponse = makeGetRecordsResponse(null, null).get(anyLong(),
+                any(TimeUnit.class));
         Record record = mock(Record.class);
         final String nextShardIterator = "NextShardIterator";
         final String sequenceNumber = "SequenceNumber";
@@ -473,8 +435,8 @@ public class KinesisDataFetcherTest {
         final ArgumentCaptor<GetShardIteratorRequest> shardIteratorRequestCaptor =
                 ArgumentCaptor.forClass(GetShardIteratorRequest.class);
 
-        when(kinesisClient.getShardIterator(shardIteratorRequestCaptor.capture()))
-                .thenReturn(makeGetShardIteratorResponse(iterator));
+        when(kinesisClient.getShardIterator(shardIteratorRequestCaptor.capture())).
+                thenReturn(makeGetShardIteratorResponse(iterator));
 
         kinesisDataFetcher.initialize(sequenceNumber, INITIAL_POSITION_LATEST);
         kinesisDataFetcher.restartIterator();
@@ -484,14 +446,11 @@ public class KinesisDataFetcherTest {
 
         final List<GetShardIteratorRequest> shardIteratorRequests = shardIteratorRequestCaptor.getAllValues();
         assertEquals(3, shardIteratorRequests.size());
-        assertEquals(
-                ShardIteratorType.AT_SEQUENCE_NUMBER.toString(),
+        assertEquals(ShardIteratorType.AT_SEQUENCE_NUMBER.toString(),
                 shardIteratorRequests.get(0).shardIteratorTypeAsString());
-        assertEquals(
-                ShardIteratorType.AFTER_SEQUENCE_NUMBER.toString(),
+        assertEquals(ShardIteratorType.AFTER_SEQUENCE_NUMBER.toString(),
                 shardIteratorRequests.get(1).shardIteratorTypeAsString());
-        assertEquals(
-                ShardIteratorType.AT_SEQUENCE_NUMBER.toString(),
+        assertEquals(ShardIteratorType.AT_SEQUENCE_NUMBER.toString(),
                 shardIteratorRequests.get(2).shardIteratorTypeAsString());
     }
 
@@ -522,8 +481,8 @@ public class KinesisDataFetcherTest {
         expectedExceptionRule.expectCause(isA(TimeoutException.class));
         expectedExceptionRule.expectMessage("Timeout");
 
-        CompletableFuture<GetShardIteratorResponse> getShardIteratorFuture = CompletableFuture.completedFuture(
-                GetShardIteratorResponse.builder().shardIterator("test").build());
+        CompletableFuture<GetShardIteratorResponse> getShardIteratorFuture = CompletableFuture
+                .completedFuture(GetShardIteratorResponse.builder().shardIterator("test").build());
 
         // Set up proxy mock methods
         when(kinesisClient.getShardIterator(any(GetShardIteratorRequest.class))).thenReturn(getShardIteratorFuture);
@@ -532,15 +491,15 @@ public class KinesisDataFetcherTest {
 
         // Create data fectcher and initialize it with latest type checkpoint
         kinesisDataFetcher.initialize(SentinelCheckpoint.LATEST.toString(), INITIAL_POSITION_LATEST);
-        final GetRecordsRetrievalStrategy getRecordsRetrievalStrategy =
-                new SynchronousGetRecordsRetrievalStrategy(kinesisDataFetcher);
+        final GetRecordsRetrievalStrategy getRecordsRetrievalStrategy = new SynchronousGetRecordsRetrievalStrategy(
+                kinesisDataFetcher);
 
         // Call records of dataFetcher which will throw an exception
         getRecordsRetrievalStrategy.getRecords(MAX_RECORDS);
     }
 
-    private DataFetcherResult assertAdvanced(
-            GetRecordsResponse expectedResult, String previousValue, String nextValue) {
+    private DataFetcherResult assertAdvanced(GetRecordsResponse expectedResult, String previousValue,
+            String nextValue) {
         DataFetcherResult acceptResult = kinesisDataFetcher.getRecords();
         assertEquals(expectedResult, acceptResult.getResult());
 
@@ -566,25 +525,19 @@ public class KinesisDataFetcherTest {
         return noAcceptResult;
     }
 
-    private void testInitializeAndFetch(
-            final String iteratorType,
-            final String seqNo,
-            final InitialPositionInStreamExtended initialPositionInStream)
-            throws Exception {
-        final ArgumentCaptor<GetShardIteratorRequest> iteratorCaptor =
-                ArgumentCaptor.forClass(GetShardIteratorRequest.class);
+    private void testInitializeAndFetch(final String iteratorType, final String seqNo,
+            final InitialPositionInStreamExtended initialPositionInStream) throws Exception {
+        final ArgumentCaptor<GetShardIteratorRequest> iteratorCaptor = ArgumentCaptor
+                .forClass(GetShardIteratorRequest.class);
         final ArgumentCaptor<GetRecordsRequest> recordsCaptor = ArgumentCaptor.forClass(GetRecordsRequest.class);
         final String iterator = "foo";
         final List<Record> expectedRecords = Collections.emptyList();
         GetShardIteratorRequest expectedIteratorRequest = makeGetShardIteratorRequest(iteratorType);
         if (iteratorType.equals(ShardIteratorType.AT_TIMESTAMP.toString())) {
             expectedIteratorRequest = expectedIteratorRequest.toBuilder()
-                    .timestamp(initialPositionInStream.getTimestamp().toInstant())
-                    .build();
+                    .timestamp(initialPositionInStream.getTimestamp().toInstant()).build();
         } else if (iteratorType.equals(ShardIteratorType.AT_SEQUENCE_NUMBER.toString())) {
-            expectedIteratorRequest = expectedIteratorRequest.toBuilder()
-                    .startingSequenceNumber(seqNo)
-                    .build();
+            expectedIteratorRequest = expectedIteratorRequest.toBuilder().startingSequenceNumber(seqNo).build();
         }
 
         when(kinesisClient.getShardIterator(iteratorCaptor.capture()))
@@ -594,16 +547,14 @@ public class KinesisDataFetcherTest {
                 .thenReturn(makeGetRecordsResponse(null, expectedRecords));
 
         Checkpointer checkpoint = mock(Checkpointer.class);
-        when(checkpoint.getCheckpoint(SHARD_ID)).thenReturn(new ExtendedSequenceNumber(seqNo));
 
-        final GetRecordsRetrievalStrategy getRecordsRetrievalStrategy =
-                new SynchronousGetRecordsRetrievalStrategy(kinesisDataFetcher);
+        final GetRecordsRetrievalStrategy getRecordsRetrievalStrategy = new SynchronousGetRecordsRetrievalStrategy(
+                kinesisDataFetcher);
         kinesisDataFetcher.initialize(seqNo, initialPositionInStream);
 
-        assertEquals(
-                expectedRecords,
-                getRecordsRetrievalStrategy.getRecords(MAX_RECORDS).records());
+        assertEquals(expectedRecords, getRecordsRetrievalStrategy.getRecords(MAX_RECORDS).records());
         verify(kinesisClient, times(1)).getShardIterator(any(GetShardIteratorRequest.class));
         verify(kinesisClient, times(1)).getRecords(any(GetRecordsRequest.class));
     }
+
 }

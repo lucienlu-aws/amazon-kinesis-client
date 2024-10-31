@@ -14,6 +14,21 @@
  */
 package software.amazon.kinesis.lifecycle;
 
+import static org.hamcrest.CoreMatchers.equalTo;
+import static org.hamcrest.CoreMatchers.nullValue;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
+import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import static org.mockito.hamcrest.MockitoHamcrest.argThat;
+import static software.amazon.kinesis.utils.ProcessRecordsInputMatcher.eqProcessRecordsInput;
+
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -27,9 +42,6 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import lombok.NonNull;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.junit.After;
 import org.junit.Before;
@@ -43,6 +55,11 @@ import org.mockito.runners.MockitoJUnitRunner;
 import org.mockito.stubbing.Answer;
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
+
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
+
+import lombok.NonNull;
+import lombok.extern.slf4j.Slf4j;
 import software.amazon.kinesis.common.InitialPositionInStreamExtended;
 import software.amazon.kinesis.common.RequestDetails;
 import software.amazon.kinesis.leases.ShardInfo;
@@ -52,21 +69,6 @@ import software.amazon.kinesis.retrieval.RecordsDeliveryAck;
 import software.amazon.kinesis.retrieval.RecordsPublisher;
 import software.amazon.kinesis.retrieval.RecordsRetrieved;
 import software.amazon.kinesis.retrieval.kpl.ExtendedSequenceNumber;
-
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.hamcrest.CoreMatchers.nullValue;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.argThat;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-import static software.amazon.kinesis.utils.ProcessRecordsInputMatcher.eqProcessRecordsInput;
 
 @Slf4j
 @RunWith(MockitoJUnitRunner.class)
@@ -82,7 +84,6 @@ public class ShardConsumerSubscriberTest {
 
     @Mock
     private ShardConsumer shardConsumer;
-
     @Mock
     private RecordsRetrieved recordsRetrieved;
 
@@ -99,22 +100,16 @@ public class ShardConsumerSubscriberTest {
 
     @Before
     public void before() {
-        executorService = Executors.newFixedThreadPool(
-                8,
-                new ThreadFactoryBuilder()
-                        .setNameFormat("test-" + testName.getMethodName() + "-%04d")
-                        .setDaemon(true)
-                        .build());
+        executorService = Executors.newFixedThreadPool(8, new ThreadFactoryBuilder()
+                .setNameFormat("test-" + testName.getMethodName() + "-%04d").setDaemon(true).build());
         recordsPublisher = new TestPublisher();
 
-        ShardInfo shardInfo =
-                new ShardInfo("shard-001", "", Collections.emptyList(), ExtendedSequenceNumber.TRIM_HORIZON);
+        ShardInfo shardInfo = new ShardInfo("shard-001", "", Collections.emptyList(),
+                ExtendedSequenceNumber.TRIM_HORIZON);
         when(shardConsumer.shardInfo()).thenReturn(shardInfo);
 
-        processRecordsInput = ProcessRecordsInput.builder()
-                .records(Collections.emptyList())
-                .cacheEntryTime(Instant.now())
-                .build();
+        processRecordsInput = ProcessRecordsInput.builder().records(Collections.emptyList())
+                .cacheEntryTime(Instant.now()).build();
 
         subscriber = new ShardConsumerSubscriber(recordsPublisher, executorService, bufferSize, shardConsumer, 0);
         when(recordsRetrieved.processRecordsInput()).thenReturn(processRecordsInput);
@@ -144,8 +139,7 @@ public class ShardConsumerSubscriberTest {
 
         startSubscriptionsAndWait();
 
-        verify(shardConsumer, times(100))
-                .handleInput(argThat(eqProcessRecordsInput(processRecordsInput)), any(Subscription.class));
+        verify(shardConsumer, times(100)).handleInput(argThat(eqProcessRecordsInput(processRecordsInput)), any(Subscription.class));
     }
 
     @Test
@@ -155,32 +149,29 @@ public class ShardConsumerSubscriberTest {
         Throwable testException = new Throwable("ShardConsumerError");
 
         doAnswer(new Answer() {
-                    int expectedInvocations = recordsPublisher.responses.size();
+            int expectedInvocations = recordsPublisher.responses.size();
 
-                    @Override
-                    public Object answer(InvocationOnMock invocation) throws Throwable {
-                        expectedInvocations--;
-                        if (expectedInvocations == 10) {
-                            throw testException;
-                        }
-                        if (expectedInvocations <= 0) {
-                            synchronized (processedNotifier) {
-                                processedNotifier.notifyAll();
-                            }
-                        }
-                        return null;
+            @Override
+            public Object answer(InvocationOnMock invocation) throws Throwable {
+                expectedInvocations--;
+                if (expectedInvocations == 10) {
+                    throw testException;
+                }
+                if (expectedInvocations <= 0) {
+                    synchronized (processedNotifier) {
+                        processedNotifier.notifyAll();
                     }
-                })
-                .when(shardConsumer)
-                .handleInput(any(ProcessRecordsInput.class), any(Subscription.class));
+                }
+                return null;
+            }
+        }).when(shardConsumer).handleInput(any(ProcessRecordsInput.class), any(Subscription.class));
 
         startSubscriptionsAndWait();
 
         assertThat(subscriber.getAndResetDispatchFailure(), equalTo(testException));
         assertThat(subscriber.getAndResetDispatchFailure(), nullValue());
 
-        verify(shardConsumer, times(20))
-                .handleInput(argThat(eqProcessRecordsInput(processRecordsInput)), any(Subscription.class));
+        verify(shardConsumer, times(20)).handleInput(argThat(eqProcessRecordsInput(processRecordsInput)), any(Subscription.class));
     }
 
     @Test
@@ -201,8 +192,7 @@ public class ShardConsumerSubscriberTest {
             Thread.sleep(10);
         }
 
-        verify(shardConsumer, times(10))
-                .handleInput(argThat(eqProcessRecordsInput(processRecordsInput)), any(Subscription.class));
+        verify(shardConsumer, times(10)).handleInput(argThat(eqProcessRecordsInput(processRecordsInput)), any(Subscription.class));
         assertThat(subscriber.retrievalFailure(), equalTo(expected));
     }
 
@@ -235,19 +225,14 @@ public class ShardConsumerSubscriberTest {
         }
 
         assertThat(recordsPublisher.restartedFrom, equalTo(edgeRecord));
-        verify(shardConsumer, times(20))
-                .handleInput(argThat(eqProcessRecordsInput(processRecordsInput)), any(Subscription.class));
+        verify(shardConsumer, times(20)).handleInput(argThat(eqProcessRecordsInput(processRecordsInput)), any(Subscription.class));
     }
 
     @Test
     public void restartAfterRequestTimerExpiresTest() throws Exception {
 
-        executorService = Executors.newFixedThreadPool(
-                1,
-                new ThreadFactoryBuilder()
-                        .setNameFormat("test-" + testName.getMethodName() + "-%04d")
-                        .setDaemon(true)
-                        .build());
+        executorService = Executors.newFixedThreadPool(1, new ThreadFactoryBuilder()
+                .setNameFormat("test-" + testName.getMethodName() + "-%04d").setDaemon(true).build());
 
         subscriber = new ShardConsumerSubscriber(recordsPublisher, executorService, bufferSize, shardConsumer, 0);
         addUniqueItem(1);
@@ -257,18 +242,15 @@ public class ShardConsumerSubscriberTest {
 
         List<ProcessRecordsInput> received = new ArrayList<>();
         doAnswer(a -> {
-                    ProcessRecordsInput input = a.getArgumentAt(0, ProcessRecordsInput.class);
-                    received.add(input);
-                    if (input.records().stream()
-                            .anyMatch(r -> StringUtils.startsWith(r.partitionKey(), TERMINAL_MARKER))) {
-                        synchronized (processedNotifier) {
-                            processedNotifier.notifyAll();
-                        }
-                    }
-                    return null;
-                })
-                .when(shardConsumer)
-                .handleInput(any(ProcessRecordsInput.class), any(Subscription.class));
+            ProcessRecordsInput input = (ProcessRecordsInput) a.getArgument(0);
+            received.add(input);
+            if (input.records().stream().anyMatch(r -> StringUtils.startsWith(r.partitionKey(), TERMINAL_MARKER))) {
+                synchronized (processedNotifier) {
+                    processedNotifier.notifyAll();
+                }
+            }
+            return null;
+        }).when(shardConsumer).handleInput(any(ProcessRecordsInput.class), any(Subscription.class));
 
         startSubscriptionsAndWait();
 
@@ -304,29 +286,17 @@ public class ShardConsumerSubscriberTest {
             processedNotifier.wait(DEFAULT_NOTIFIER_TIMEOUT);
         }
 
-        verify(shardConsumer, times(100))
-                .handleInput(argThat(eqProcessRecordsInput(processRecordsInput)), any(Subscription.class));
+        verify(shardConsumer, times(100)).handleInput(argThat(eqProcessRecordsInput(processRecordsInput)), any(Subscription.class));
 
         assertThat(received.size(), equalTo(recordsPublisher.responses.size()));
-        Stream.iterate(0, i -> i + 1)
-                .limit(received.size())
-                .forEach(i -> assertThat(
-                        received.get(i),
-                        eqProcessRecordsInput(recordsPublisher
-                                .responses
-                                .get(i)
-                                .recordsRetrieved
-                                .processRecordsInput())));
+        Stream.iterate(0, i -> i + 1).limit(received.size()).forEach(i -> assertThat(received.get(i),
+                eqProcessRecordsInput(recordsPublisher.responses.get(i).recordsRetrieved.processRecordsInput())));
     }
 
     @Test
     public void restartAfterRequestTimerExpiresWhenNotGettingRecordsAfterInitialization() throws Exception {
-        executorService = Executors.newFixedThreadPool(
-                1,
-                new ThreadFactoryBuilder()
-                        .setNameFormat("test-" + testName.getMethodName() + "-%04d")
-                        .setDaemon(true)
-                        .build());
+        executorService = Executors.newFixedThreadPool(1, new ThreadFactoryBuilder()
+                .setNameFormat("test-" + testName.getMethodName() + "-%04d").setDaemon(true).build());
 
         // Mock record publisher which doesn't publish any records on first try which simulates any scenario which
         // causes first subscription try to fail.
@@ -336,26 +306,22 @@ public class ShardConsumerSubscriberTest {
 
         List<ProcessRecordsInput> received = new ArrayList<>();
         doAnswer(a -> {
-                    ProcessRecordsInput input = a.getArgumentAt(0, ProcessRecordsInput.class);
-                    received.add(input);
-                    if (input.records().stream()
-                            .anyMatch(r -> StringUtils.startsWith(r.partitionKey(), TERMINAL_MARKER))) {
-                        synchronized (processedNotifier) {
-                            processedNotifier.notifyAll();
-                        }
-                    }
-                    return null;
-                })
-                .when(shardConsumer)
-                .handleInput(any(ProcessRecordsInput.class), any(Subscription.class));
+            ProcessRecordsInput input = (ProcessRecordsInput) a.getArgument(0);
+            received.add(input);
+            if (input.records().stream().anyMatch(r -> StringUtils.startsWith(r.partitionKey(), TERMINAL_MARKER))) {
+                synchronized (processedNotifier) {
+                    processedNotifier.notifyAll();
+                }
+            }
+            return null;
+        }).when(shardConsumer).handleInput(any(ProcessRecordsInput.class), any(Subscription.class));
 
         // First try to start subscriptions.
         startSubscriptionsAndWait(100);
 
         // Verifying that there are no interactions with shardConsumer mock indicating no records were sent back and
         // subscription has not started correctly.
-        verify(shardConsumer, never())
-                .handleInput(argThat(eqProcessRecordsInput(processRecordsInput)), any(Subscription.class));
+        verify(shardConsumer, never()).handleInput(argThat(eqProcessRecordsInput(processRecordsInput)), any(Subscription.class));
 
         Stream.iterate(2, i -> i + 1).limit(98).forEach(this::addUniqueItem);
 
@@ -375,59 +341,43 @@ public class ShardConsumerSubscriberTest {
 
         // Verify that received records in the subscriber are equal to the ones sent by the record publisher.
         assertThat(received.size(), equalTo(recordsPublisher.responses.size()));
-        Stream.iterate(0, i -> i + 1)
-                .limit(received.size())
-                .forEach(i -> assertThat(
-                        received.get(i),
-                        eqProcessRecordsInput(recordsPublisher
-                                .responses
-                                .get(i)
-                                .recordsRetrieved
-                                .processRecordsInput())));
+        Stream.iterate(0, i -> i + 1).limit(received.size()).forEach(i -> assertThat(received.get(i),
+                eqProcessRecordsInput(recordsPublisher.responses.get(i).recordsRetrieved.processRecordsInput())));
     }
 
     @Test
     public void restartAfterRequestTimerExpiresWhenInitialTaskExecutionIsRejected() throws Exception {
-        executorService = Executors.newFixedThreadPool(
-                1,
-                new ThreadFactoryBuilder()
-                        .setNameFormat("test-" + testName.getMethodName() + "-%04d")
-                        .setDaemon(true)
-                        .build());
+        executorService = Executors.newFixedThreadPool(1, new ThreadFactoryBuilder()
+                .setNameFormat("test-" + testName.getMethodName() + "-%04d").setDaemon(true).build());
 
         ExecutorService failingService = spy(executorService);
 
         doAnswer(invocation -> directlyExecuteRunnable(invocation))
                 .doThrow(new RejectedExecutionException())
                 .doCallRealMethod()
-                .when(failingService)
-                .execute(any());
+                .when(failingService).execute(any());
 
         subscriber = new ShardConsumerSubscriber(recordsPublisher, failingService, bufferSize, shardConsumer, 0);
         addUniqueItem(1);
 
         List<ProcessRecordsInput> received = new ArrayList<>();
         doAnswer(a -> {
-                    ProcessRecordsInput input = a.getArgumentAt(0, ProcessRecordsInput.class);
-                    received.add(input);
-                    if (input.records().stream()
-                            .anyMatch(r -> StringUtils.startsWith(r.partitionKey(), TERMINAL_MARKER))) {
-                        synchronized (processedNotifier) {
-                            processedNotifier.notifyAll();
-                        }
-                    }
-                    return null;
-                })
-                .when(shardConsumer)
-                .handleInput(any(ProcessRecordsInput.class), any(Subscription.class));
+            ProcessRecordsInput input = (ProcessRecordsInput) a.getArgument(0);
+            received.add(input);
+            if (input.records().stream().anyMatch(r -> StringUtils.startsWith(r.partitionKey(), TERMINAL_MARKER))) {
+                synchronized (processedNotifier) {
+                    processedNotifier.notifyAll();
+                }
+            }
+            return null;
+        }).when(shardConsumer).handleInput(any(ProcessRecordsInput.class), any(Subscription.class));
 
         // First try to start subscriptions.
         startSubscriptionsAndWait(100);
 
         // Verifying that there are no interactions with shardConsumer mock indicating no records were sent back and
         // subscription has not started correctly.
-        verify(shardConsumer, never())
-                .handleInput(argThat(eqProcessRecordsInput(processRecordsInput)), any(Subscription.class));
+        verify(shardConsumer, never()).handleInput(argThat(eqProcessRecordsInput(processRecordsInput)), any(Subscription.class));
 
         Stream.iterate(2, i -> i + 1).limit(98).forEach(this::addUniqueItem);
 
@@ -443,20 +393,12 @@ public class ShardConsumerSubscriberTest {
         }
 
         // Verify that shardConsumer mock was called 100 times and all 100 input records are processed.
-        verify(shardConsumer, times(100))
-                .handleInput(argThat(eqProcessRecordsInput(processRecordsInput)), any(Subscription.class));
+        verify(shardConsumer, times(100)).handleInput(argThat(eqProcessRecordsInput(processRecordsInput)), any(Subscription.class));
 
         // Verify that received records in the subscriber are equal to the ones sent by the record publisher.
         assertThat(received.size(), equalTo(recordsPublisher.responses.size()));
-        Stream.iterate(0, i -> i + 1)
-                .limit(received.size())
-                .forEach(i -> assertThat(
-                        received.get(i),
-                        eqProcessRecordsInput(recordsPublisher
-                                .responses
-                                .get(i)
-                                .recordsRetrieved
-                                .processRecordsInput())));
+        Stream.iterate(0, i -> i + 1).limit(received.size()).forEach(i -> assertThat(received.get(i),
+                eqProcessRecordsInput(recordsPublisher.responses.get(i).recordsRetrieved.processRecordsInput())));
     }
 
     private Object directlyExecuteRunnable(InvocationOnMock invocation) {
@@ -468,11 +410,8 @@ public class ShardConsumerSubscriberTest {
 
     private void addUniqueItem(int id) {
         RecordsRetrieved r = mock(RecordsRetrieved.class, "Record-" + id);
-        ProcessRecordsInput input = ProcessRecordsInput.builder()
-                .cacheEntryTime(Instant.now())
-                .records(Collections.singletonList(KinesisClientRecord.builder()
-                        .partitionKey("Record-" + id)
-                        .build()))
+        ProcessRecordsInput input = ProcessRecordsInput.builder().cacheEntryTime(Instant.now())
+                .records(Collections.singletonList(KinesisClientRecord.builder().partitionKey("Record-" + id).build()))
                 .build();
         when(r.processRecordsInput()).thenReturn(input);
         recordsPublisher.add(new ResponseItem(r));
@@ -481,11 +420,9 @@ public class ShardConsumerSubscriberTest {
     private ProcessRecordsInput addTerminalMarker(int id) {
         RecordsRetrieved terminalResponse = mock(RecordsRetrieved.class, TERMINAL_MARKER + "-" + id);
         ProcessRecordsInput terminalInput = ProcessRecordsInput.builder()
-                .records(Collections.singletonList(KinesisClientRecord.builder()
-                        .partitionKey(TERMINAL_MARKER + "-" + id)
-                        .build()))
-                .cacheEntryTime(Instant.now())
-                .build();
+                .records(Collections
+                        .singletonList(KinesisClientRecord.builder().partitionKey(TERMINAL_MARKER + "-" + id).build()))
+                .cacheEntryTime(Instant.now()).build();
         when(terminalResponse.processRecordsInput()).thenReturn(terminalInput);
         recordsPublisher.add(new ResponseItem(terminalResponse));
 
@@ -493,28 +430,25 @@ public class ShardConsumerSubscriberTest {
     }
 
     private void addItemsToReturn(int count) {
-        Stream.iterate(0, i -> i + 1)
-                .limit(count)
+        Stream.iterate(0, i -> i + 1).limit(count)
                 .forEach(i -> recordsPublisher.add(new ResponseItem(recordsRetrieved)));
     }
 
     private void setupNotifierAnswer(int expected) {
         doAnswer(new Answer() {
-                    int seen = expected;
+            int seen = expected;
 
-                    @Override
-                    public Object answer(InvocationOnMock invocation) throws Throwable {
-                        seen--;
-                        if (seen == 0) {
-                            synchronized (processedNotifier) {
-                                processedNotifier.notifyAll();
-                            }
-                        }
-                        return null;
+            @Override
+            public Object answer(InvocationOnMock invocation) throws Throwable {
+                seen--;
+                if (seen == 0) {
+                    synchronized (processedNotifier) {
+                        processedNotifier.notifyAll();
                     }
-                })
-                .when(shardConsumer)
-                .handleInput(any(ProcessRecordsInput.class), any(Subscription.class));
+                }
+                return null;
+            }
+        }).when(shardConsumer).handleInput(any(ProcessRecordsInput.class), any(Subscription.class));
     }
 
     private void startSubscriptionsAndWait() throws InterruptedException {
@@ -581,9 +515,10 @@ public class ShardConsumerSubscriberTest {
         }
 
         @Override
-        public void start(
-                ExtendedSequenceNumber extendedSequenceNumber,
-                InitialPositionInStreamExtended initialPositionInStreamExtended) {}
+        public void start(ExtendedSequenceNumber extendedSequenceNumber,
+                InitialPositionInStreamExtended initialPositionInStreamExtended) {
+
+        }
 
         @Override
         public void restartFrom(RecordsRetrieved recordsRetrieved) {
@@ -596,13 +531,18 @@ public class ShardConsumerSubscriberTest {
                     break;
                 }
             }
+
         }
 
         @Override
-        public void notify(RecordsDeliveryAck ack) {}
+        public void notify(RecordsDeliveryAck ack) {
+
+        }
 
         @Override
-        public void shutdown() {}
+        public void shutdown() {
+
+        }
 
         @Override
         public RequestDetails getLastSuccessfulRequestDetails() {
@@ -654,10 +594,7 @@ public class ShardConsumerSubscriberTest {
         private int genericWarningLogged = 0;
         private int readTimeoutWarningLogged = 0;
 
-        TestShardConsumerSubscriber(
-                RecordsPublisher recordsPublisher,
-                ExecutorService executorService,
-                int bufferSize,
+        TestShardConsumerSubscriber(RecordsPublisher recordsPublisher, ExecutorService executorService, int bufferSize,
                 ShardConsumer shardConsumer,
                 // Setup test expectations
                 int readTimeoutsToIgnoreBeforeWarning) {
@@ -688,8 +625,8 @@ public class ShardConsumerSubscriberTest {
         int readTimeoutsToIgnore = 0;
         int expectedReadTimeoutLogs = 0;
         int expectedGenericLogs = 0;
-        TestShardConsumerSubscriber consumer = new TestShardConsumerSubscriber(
-                mock(RecordsPublisher.class), Executors.newFixedThreadPool(1), 8, shardConsumer, readTimeoutsToIgnore);
+        TestShardConsumerSubscriber consumer = new TestShardConsumerSubscriber(mock(RecordsPublisher.class),
+                Executors.newFixedThreadPool(1), 8, shardConsumer, readTimeoutsToIgnore);
         consumer.startSubscriptions();
         mimicSuccess(consumer);
         mimicSuccess(consumer);
@@ -714,8 +651,8 @@ public class ShardConsumerSubscriberTest {
         int readTimeoutsToIgnore = 0;
         int expectedReadTimeoutLogs = 2;
         int expectedGenericLogs = 0;
-        TestShardConsumerSubscriber consumer = new TestShardConsumerSubscriber(
-                mock(RecordsPublisher.class), Executors.newFixedThreadPool(1), 8, shardConsumer, readTimeoutsToIgnore);
+        TestShardConsumerSubscriber consumer = new TestShardConsumerSubscriber(mock(RecordsPublisher.class),
+                Executors.newFixedThreadPool(1), 8, shardConsumer, readTimeoutsToIgnore);
         consumer.startSubscriptions();
         mimicSuccess(consumer);
         mimicSuccess(consumer);
@@ -740,8 +677,8 @@ public class ShardConsumerSubscriberTest {
         int readTimeoutsToIgnore = 1;
         int expectedReadTimeoutLogs = 0;
         int expectedGenericLogs = 0;
-        TestShardConsumerSubscriber consumer = new TestShardConsumerSubscriber(
-                mock(RecordsPublisher.class), Executors.newFixedThreadPool(1), 8, shardConsumer, readTimeoutsToIgnore);
+        TestShardConsumerSubscriber consumer = new TestShardConsumerSubscriber(mock(RecordsPublisher.class),
+                Executors.newFixedThreadPool(1), 8, shardConsumer, readTimeoutsToIgnore);
         consumer.startSubscriptions();
         mimicSuccess(consumer);
         mimicSuccess(consumer);
@@ -767,8 +704,8 @@ public class ShardConsumerSubscriberTest {
         int readTimeoutsToIgnore = 1;
         int expectedReadTimeoutLogs = 2;
         int expectedGenericLogs = 0;
-        TestShardConsumerSubscriber consumer = new TestShardConsumerSubscriber(
-                mock(RecordsPublisher.class), Executors.newFixedThreadPool(1), 8, shardConsumer, readTimeoutsToIgnore);
+        TestShardConsumerSubscriber consumer = new TestShardConsumerSubscriber(mock(RecordsPublisher.class),
+                Executors.newFixedThreadPool(1), 8, shardConsumer, readTimeoutsToIgnore);
         consumer.startSubscriptions();
         mimicException(exceptionToThrow, consumer);
         mimicException(exceptionToThrow, consumer);
@@ -794,8 +731,8 @@ public class ShardConsumerSubscriberTest {
         int readTimeoutsToIgnore = 2;
         int expectedReadTimeoutLogs = 3;
         int expectedGenericLogs = 0;
-        TestShardConsumerSubscriber consumer = new TestShardConsumerSubscriber(
-                mock(RecordsPublisher.class), Executors.newFixedThreadPool(1), 8, shardConsumer, readTimeoutsToIgnore);
+        TestShardConsumerSubscriber consumer = new TestShardConsumerSubscriber(mock(RecordsPublisher.class),
+                Executors.newFixedThreadPool(1), 8, shardConsumer, readTimeoutsToIgnore);
         consumer.startSubscriptions();
         mimicException(exceptionToThrow, consumer);
         mimicException(exceptionToThrow, consumer);
@@ -821,8 +758,8 @@ public class ShardConsumerSubscriberTest {
         int readTimeoutsToIgnore = 0;
         int expectedReadTimeoutLogs = 0;
         int expectedGenericLogs = 2;
-        TestShardConsumerSubscriber consumer = new TestShardConsumerSubscriber(
-                mock(RecordsPublisher.class), Executors.newFixedThreadPool(1), 8, shardConsumer, readTimeoutsToIgnore);
+        TestShardConsumerSubscriber consumer = new TestShardConsumerSubscriber(mock(RecordsPublisher.class),
+                Executors.newFixedThreadPool(1), 8, shardConsumer, readTimeoutsToIgnore);
         consumer.startSubscriptions();
         mimicSuccess(consumer);
         mimicSuccess(consumer);
@@ -850,8 +787,8 @@ public class ShardConsumerSubscriberTest {
         int readTimeoutsToIgnore = 2;
         int expectedReadTimeoutLogs = 0;
         int expectedGenericLogs = 2;
-        TestShardConsumerSubscriber consumer = new TestShardConsumerSubscriber(
-                mock(RecordsPublisher.class), Executors.newFixedThreadPool(1), 8, shardConsumer, readTimeoutsToIgnore);
+        TestShardConsumerSubscriber consumer = new TestShardConsumerSubscriber(mock(RecordsPublisher.class),
+                Executors.newFixedThreadPool(1), 8, shardConsumer, readTimeoutsToIgnore);
         consumer.startSubscriptions();
         mimicSuccess(consumer);
         mimicSuccess(consumer);
@@ -873,4 +810,5 @@ public class ShardConsumerSubscriberTest {
         // restart subscriptions to allow further requests to be mimiced
         consumer.startSubscriptions();
     }
+
 }

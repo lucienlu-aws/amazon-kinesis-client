@@ -1,8 +1,8 @@
 package software.amazon.kinesis.common;
 
-import org.junit.Test;
-
 import static software.amazon.kinesis.common.InitialPositionInStream.TRIM_HORIZON;
+
+import org.junit.Test;
 
 public class StreamConfigTest {
 
@@ -10,4 +10,5 @@ public class StreamConfigTest {
     public void testNullStreamIdentifier() {
         new StreamConfig(null, InitialPositionInStreamExtended.newInitialPosition(TRIM_HORIZON));
     }
+
 }

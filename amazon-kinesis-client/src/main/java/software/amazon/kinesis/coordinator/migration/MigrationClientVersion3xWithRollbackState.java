@@ -33,6 +33,8 @@ import java.util.concurrent.ScheduledExecutorService;
 
 import static software.amazon.kinesis.coordinator.migration.ClientVersion.CLIENT_VERSION_2x;
 import static software.amazon.kinesis.coordinator.migration.ClientVersion.CLIENT_VERSION_3x;
+import static software.amazon.kinesis.coordinator.migration.MigrationStateMachineImpl.FAULT_METRIC;
+import static software.amazon.kinesis.coordinator.migration.MigrationStateMachineImpl.METRICS_OPERATION;
 
 /**
  * State for CLIENT_VERSION_3x_WITH_ROLLBACK which enables KCL to run its 3.x compliant algorithms
@@ -66,25 +68,19 @@ public class MigrationClientVersion3xWithRollbackState implements MigrationClien
     @Override
     public synchronized void enter(final ClientVersion fromClientVersion) throws DependencyException {
         if (!entered) {
-            final MetricsScope scope = MetricsUtil.createMetricsWithOperation(initializer.metricsFactory(),
-                "MigrationStateMachine");
-            try {
-                log.info("Entering {} from {}", this, fromClientVersion);
-                initializer.initializeClientVersionFor3xWithRollback(fromClientVersion);
-                // we need to run the rollback monitor
-                log.info("Starting rollback monitor");
-                rollbackMonitor = new ClientVersionChangeMonitor(
-                    coordinatorStateDAO,
-                    stateMachineThreadPool,
-                    this::onClientVersionChange,
-                    clientVersion(),
-                    random);
-                rollbackMonitor.startMonitor();
-                entered = true;
-            } finally {
-                scope.addData("UpgradedTo3x", entered ? 1 : 0, StandardUnit.COUNT, MetricsLevel.SUMMARY);
-                MetricsUtil.endScope(scope);
-            }
+            log.info("Entering {} from {}", this, fromClientVersion);
+            initializer.initializeClientVersionFor3xWithRollback(fromClientVersion);
+            // we need to run the rollback monitor
+            log.info("Starting rollback monitor");
+            rollbackMonitor = new ClientVersionChangeMonitor(
+                initializer.metricsFactory(),
+                coordinatorStateDAO,
+                stateMachineThreadPool,
+                this::onClientVersionChange,
+                clientVersion(),
+                random);
+            rollbackMonitor.startMonitor();
+            entered = true;
         } else {
             log.info("Not entering {}", left ? "already exited state" : "already entered state");
         }
@@ -111,21 +107,18 @@ public class MigrationClientVersion3xWithRollbackState implements MigrationClien
             return;
         }
         final MetricsScope scope = MetricsUtil.createMetricsWithOperation(initializer.metricsFactory(),
-            "MigrationStateMachine.ClientVersionChangeHandler");
-        boolean success = false;
+            METRICS_OPERATION);
         try {
             switch (newState.getClientVersion()) {
                 case CLIENT_VERSION_2x:
                     log.info("A rollback has been initiated for the application. Transition to {}",
                         CLIENT_VERSION_2x);
                     stateMachine.transitionTo(ClientVersion.CLIENT_VERSION_2x, newState);
-                    success = true;
                     break;
                 case CLIENT_VERSION_3x:
                     log.info("Customer has switched to 3.x after successful upgrade, state machine will move to a" +
                         "terminal state and stop monitoring. Rollbacks will no longer be supported anymore");
                     stateMachine.transitionTo(CLIENT_VERSION_3x, newState);
-                    success = true;
                     // This worker will still be running the migrationAdaptive components in 3.x mode which will
                     // no longer dynamically switch back to 2.x mode, however to directly run 3.x component without
                     // adaption to migration (i.e. move to CLIENT_VERSION_3x state), it requires this worker to go
@@ -144,8 +137,10 @@ public class MigrationClientVersion3xWithRollbackState implements MigrationClien
                     log.error("Migration state has invalid client version {}", newState);
                     throw new InvalidStateException(String.format("Unexpected new state %s", newState));
             }
+        } catch (final InvalidStateException | DependencyException e) {
+            scope.addData(FAULT_METRIC, 1, StandardUnit.COUNT, MetricsLevel.SUMMARY);
+            throw e;
         } finally {
-            MetricsUtil.addSuccess(scope, null, success, MetricsLevel.SUMMARY);
             MetricsUtil.endScope(scope);
         }
     }

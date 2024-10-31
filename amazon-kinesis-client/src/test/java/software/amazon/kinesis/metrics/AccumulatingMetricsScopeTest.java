@@ -16,8 +16,10 @@ package software.amazon.kinesis.metrics;
 
 import org.junit.Assert;
 import org.junit.Test;
+
 import software.amazon.awssdk.services.cloudwatch.model.MetricDatum;
 import software.amazon.awssdk.services.cloudwatch.model.StandardUnit;
+
 
 public class AccumulatingMetricsScopeTest {
 
