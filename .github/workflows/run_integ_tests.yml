@@ -41,7 +41,7 @@ jobs:
       id-token: write
     if: ${{ always() && needs.check-if-should-run.outputs.should_run == 'true' && (needs.check-if-should-run.outputs.is_fork != 'true' || needs.wait-for-approval.result == 'success') }}
     timeout-minutes: 20
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     defaults:
       run:
         shell: bash
@@ -59,7 +59,7 @@ jobs:
         with:
          aws-region: us-east-1
          role-to-assume: ${{ secrets.AWS_ARN_GHA }}
-         role-session-name: GHA-${{ github.run_id }}-${{ matrix.jdk-version }}-${{ matrix.os }}
+         role-session-name: GHA-${{ github.run_id }}
 
       - name: Set up JDK 8
         uses: actions/setup-java@v4
