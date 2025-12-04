@@ -96,21 +96,21 @@ public class TestConsumer {
         final StreamExistenceManager streamExistenceManager = new StreamExistenceManager(this.consumerConfig);
         final LeaseTableManager leaseTableManager = new LeaseTableManager(this.dynamoClient);
 
-        // Check if stream is created. If not, create it
-        streamExistenceManager.checkStreamsAndCreateIfNecessary();
-        Map<Arn, Arn> streamToConsumerArnsMap = streamExistenceManager.createCrossAccountConsumerIfNecessary();
-
-        publishRecords(NUM_RECORDS_PUT_PER_STREAM);
-        setUpConsumerResources(streamToConsumerArnsMap);
-
         try {
+            // Check if stream is created. If not, create it
+            streamExistenceManager.checkStreamsAndCreateIfNecessary();
+            Map<Arn, Arn> streamToConsumerArnsMap = streamExistenceManager.createCrossAccountConsumerIfNecessary();
+
+            setUpConsumerResources(streamToConsumerArnsMap);
+            publishRecords(NUM_RECORDS_PUT_PER_STREAM);
+
             startConsumer();
 
             // The longest part of starting up a new KCL 3.x application is waiting for the lease table GSI to be
             // created. This roughly takes between 5-10 minutes for a 4 shard lease table. Therefore, sleep for
             // approximately 15 minutes to allow KCL to start up, assign leases, and process.
             // TODO: optimize the integration test runtime so we know when KCL has started so we don't sleep as long
-            Thread.sleep(TimeUnit.MINUTES.toMillis(1));
+            Thread.sleep(TimeUnit.MINUTES.toMillis(15));
 
             if (consumerConfig.getReshardFactorList() != null) {
                 performStreamScale();
