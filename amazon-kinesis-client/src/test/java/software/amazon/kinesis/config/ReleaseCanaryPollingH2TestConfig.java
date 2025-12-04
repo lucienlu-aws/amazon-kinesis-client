@@ -10,6 +10,7 @@ import software.amazon.awssdk.http.Protocol;
  * Config for a polling consumer with HTTP protocol of HTTP2
  */
 public class ReleaseCanaryPollingH2TestConfig extends KCLAppConfig {
+
     private final String applicationName = "PollingH2Test";
     private final String streamName = "PollingH2TestStream";
 
