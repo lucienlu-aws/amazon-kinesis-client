@@ -13,7 +13,7 @@ public class BasicStreamConsumerIntegrationTest {
      * Test with a polling consumer using HTTP2 protocol.
      * In the polling case, consumer makes calls to the producer each time to request records to process.
      */
-    // @Test
+    @Test
     public void kclReleaseCanaryPollingH2Test() throws Exception {
         KCLAppConfig consumerConfig = new ReleaseCanaryPollingH2TestConfig();
         TestConsumer consumer = new TestConsumer(consumerConfig);
@@ -35,7 +35,7 @@ public class BasicStreamConsumerIntegrationTest {
      * Test with a streaming consumer.
      * In the streaming configuration, connection is made once between consumer and producer and producer continuously sends data to be processed.
      */
-    @Test
+    // @Test
     public void kclReleaseCanaryStreamingTest() throws Exception {
         KCLAppConfig consumerConfig = new ReleaseCanaryStreamingTestConfig();
         TestConsumer consumer = new TestConsumer(consumerConfig);
