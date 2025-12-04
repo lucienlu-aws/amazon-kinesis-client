@@ -1,7 +1,5 @@
 # This workflow will trigger on pushes and pull requests to master branch (and other branches in the list)
-# sample-run uses matrix to create unique combinations of operating systems and python versions
-# each of the unique runs downloads the jars needed to run the KCL, runs the sample_kinesis_wordputter.py, and runs sample_kclpy_app.py
-# auto-approve-dependabot uses GitHub events to check if dependabot is the pull requester, and if the bump is functional then the PR is automatically approved
+# run-integ-tests runs the KCL java integration tests on Java 8
 name: Run integration tests
 on:
   push:
@@ -33,9 +31,9 @@ jobs:
     steps:
       - run: echo "Fork PR approved by a team member."
 
-  # Sample run tests of the KCL
+  # Run integration tests in the KCL
   # Runs only if (check-if-should-run allows AND (the PR is not from a fork OR it has been approved to run))
-  sample-run:
+  run-integ-tests:
     needs: [ check-if-should-run, wait-for-approval ]
     permissions:
       id-token: write
@@ -70,5 +68,6 @@ jobs:
       # Skipping unit tests and only running integration tests since the normal build runs the unit tests already
       - name: Standard build
         run: mvn -B package --file pom.xml -DskipITs=true -DskipUTs=true
+      # TODO: For now, just run the basic test case. Need to optimize parallel executions so tests don't take long
       - name: Run integration tests
         run: mvn -DskipUTs=true -DskipITs=false -Dit.test="BasicStreamConsumerIntegrationTest" verify
