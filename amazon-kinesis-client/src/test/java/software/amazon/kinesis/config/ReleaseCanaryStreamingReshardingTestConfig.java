@@ -14,10 +14,8 @@ import static software.amazon.kinesis.utils.ReshardOptions.SPLIT;
 
 public class ReleaseCanaryStreamingReshardingTestConfig extends KCLAppConfig {
 
-    private final UUID uniqueId = UUID.randomUUID();
-
     private final String applicationName = "StreamingReshardingTest";
-    private final String streamName = "2XStreamingReshardingTestStream_" + uniqueId;
+    private final String streamName = "StreamingReshardingTestStream";
 
     @Override
     public String getTestName() {
