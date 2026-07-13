@@ -69,6 +69,7 @@ public abstract class AbstractMigrationClientVersionState implements MigrationCl
             log.info("Entering {} from {}", this, fromClientVersion);
             ensureDdbStateMatchesClientVersion();
             doEnter(fromClientVersion);
+            // ensureDdbStateMatchesClientVersion();
             entered = true;
         } else {
             log.info("Not entering {}", left ? "already exited state" : "already entered state");

@@ -113,6 +113,10 @@ public class MigrationStateMachineImpl implements MigrationStateMachine {
                             coordinatorStateDAO, clientVersionConfig, random, workerId);
             final SimpleEntry<ClientVersion, MigrationState> dataForInitialization =
                     startingStateInitializer.getInitialState();
+            // TODO: this returns as CLIENT_VERSION_3X and sets startingClientVersion even if startingState.enter throws
+            //  DependencyException. Therefore, on next scheudler init retry this if block does not run.
+            //  However, if we revert the startingClient version, the next init starts and calls DynamicMigrationComponentsInitializer.initializeStartupComponents
+            //  again which starts up another set of threads for LAM, workerMetricsManager, etc which is not what we want either
             startingClientVersion = dataForInitialization.getKey();
             startingMigrationState = dataForInitialization.getValue();
 
@@ -122,7 +126,13 @@ public class MigrationStateMachineImpl implements MigrationStateMachine {
             // retries the whole initialization loop.
             final MigrationClientVersionState startingState =
                     createMigrationClientVersionState(startingClientVersion, startingMigrationState);
-            startingState.enter(ClientVersion.CLIENT_VERSION_INIT);
+            try {
+                startingState.enter(ClientVersion.CLIENT_VERSION_INIT);
+            } catch (DependencyException e) {
+                log.info("Caught DependencyException, reverting startingClientVersion");
+                startingClientVersion = null;
+                throw e;
+            }
             currentMigrationClientVersionState = startingState;
             log.info("MigrationStateMachine initial clientVersion {}", startingClientVersion);
 
